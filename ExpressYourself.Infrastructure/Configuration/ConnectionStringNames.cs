@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace ExpressYourself.Infrastructure.Configuration
+﻿namespace ExpressYourself.Infrastructure.Configuration
 {
     internal class ConnectionStringNames
     {
