@@ -1,6 +1,7 @@
 @ExpressYourself.API_HostAddress = http://localhost:5158
 
-GET {{ExpressYourself.API_HostAddress}}/weatherforecast/
+### IP information 
+GET {{ExpressYourself.API_HostAddress}}/api/ips/8.8.8.8
 Accept: application/json
 
 ###
