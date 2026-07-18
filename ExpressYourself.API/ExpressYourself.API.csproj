@@ -1,14 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>9949c36a-0fe5-4537-b10c-74b08efc8d31</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.9.0" />
+	  <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+	  <PackageReference Include="Microsoft.OpenApi" Version="2.10.0" />
   </ItemGroup>
 
   <ItemGroup>
