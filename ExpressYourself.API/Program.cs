@@ -14,6 +14,7 @@ builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 });
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
