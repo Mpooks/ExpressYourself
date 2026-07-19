@@ -2,6 +2,7 @@
   <Project Path="ExpressYourself.API/ExpressYourself.API.csproj" />
   <Project Path="ExpressYourself.Application/ExpressYourself.Application.csproj" />
   <Project Path="ExpressYourself.Domain/ExpressYourself.Domain.csproj" />
+  <Project Path="ExpressYourself.Gateway/ExpressYourself.Gateway.csproj" Id="82ddefcc-bd13-4b3d-a70f-46e80f0fb20f" />
   <Project Path="ExpressYourself.Infrastructure/ExpressYourself.Infrastructure.csproj" />
   <Project Path="ExpressYourself.Tests/ExpressYourself.Tests.csproj" />
 </Solution>
