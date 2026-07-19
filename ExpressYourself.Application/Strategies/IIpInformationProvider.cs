@@ -4,6 +4,6 @@ namespace ExpressYourself.Application.Strategies
 {
     public interface IIpInformationProvider
     {
-        Task<IpInformationDto> GetIpInformationAssignedAsync(string address, CancellationToken cancellationToken);
+        Task<IpInformationDto> GetIpInformationAsync(string address, CancellationToken cancellationToken);
     }
 }
