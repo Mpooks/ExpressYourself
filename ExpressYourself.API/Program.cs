@@ -2,6 +2,9 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using ExpressYourself.Application;
 using ExpressYourself.Infrastructure;
+using ExpressYourself.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using ExpressYourself.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,8 @@ builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddDbContext<ExpressYourselfDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString(ConnectionStringNames.SqlServer)));
 
 var app = builder.Build();
 

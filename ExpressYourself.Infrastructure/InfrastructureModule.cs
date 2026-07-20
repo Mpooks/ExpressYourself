@@ -1,4 +1,7 @@
 ﻿using Autofac;
+using ExpressYourself.Application.Infrastructure.Persistence;
+using ExpressYourself.Infrastructure.Persistence;
+using ExpressYourself.Infrastructure.Persistence.Repositories;
 
 namespace ExpressYourself.Infrastructure
 {
@@ -6,7 +9,10 @@ namespace ExpressYourself.Infrastructure
     {
         protected override void Load(ContainerBuilder builder)
         {
-
+            builder.RegisterType<ExpressYourselfDbContext>().AsSelf().InstancePerLifetimeScope();
+            builder.RegisterType<UnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
+            builder.RegisterType<CountryRepository>().As<ICountryRepository>().InstancePerLifetimeScope();
+            builder.RegisterType<IpAddressRepository>().As<IIpAddressRepository>().InstancePerLifetimeScope();
         }
     }
 }
