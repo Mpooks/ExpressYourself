@@ -1,5 +1,6 @@
 ﻿using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Domain.Entities;
+using ExpressYourself.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpressYourself.Infrastructure.Persistence.Repositories;
@@ -13,11 +14,10 @@ internal sealed class CountryRepository : ICountryRepository
         _context = context;
     }
 
-    public async Task<Country?> GetByTwoLetterCodeAsync(string twoLetterCode)
+    public async Task<Country?> GetByTwoLetterCodeAsync(string twoLetterCode, CancellationToken cancellationToken)
     {
-
         return await _context.Countries
-        .FirstOrDefaultAsync(c => c.TwoLetterCode == twoLetterCode);
+            .FirstOrDefaultAsync(c => c.TwoLetterCode == twoLetterCode, cancellationToken);
     }
 
     public void Add(Country country)

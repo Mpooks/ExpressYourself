@@ -2,9 +2,9 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using ExpressYourself.Application;
 using ExpressYourself.Infrastructure;
-using ExpressYourself.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using ExpressYourself.Infrastructure.Configuration;
+using ExpressYourself.Infrastructure.Persistence.Context;
 
 var builder = WebApplication.CreateBuilder(args);
 

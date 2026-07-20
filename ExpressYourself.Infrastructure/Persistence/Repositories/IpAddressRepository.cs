@@ -1,5 +1,6 @@
 ﻿using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Domain.Entities;
+using ExpressYourself.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpressYourself.Infrastructure.Persistence.Repositories;

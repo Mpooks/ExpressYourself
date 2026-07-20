@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace ExpressYourself.Infrastructure.Migrations
 {
     /// <inheritdoc />
@@ -47,7 +45,6 @@ namespace ExpressYourself.Infrastructure.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
-           
             migrationBuilder.CreateIndex(
                 name: "IX_Countries_ThreeLetterCode",
                 table: "Countries",

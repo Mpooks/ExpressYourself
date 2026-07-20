@@ -1,6 +1,6 @@
 ﻿using ExpressYourself.Application.Infrastructure.Persistence;
 
-namespace ExpressYourself.Infrastructure.Persistence;
+namespace ExpressYourself.Infrastructure.Persistence.Context;
 
 internal sealed class UnitOfWork : IUnitOfWork
 {
