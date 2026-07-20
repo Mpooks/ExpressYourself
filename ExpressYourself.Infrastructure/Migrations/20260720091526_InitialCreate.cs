@@ -47,22 +47,7 @@ namespace ExpressYourself.Infrastructure.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
-            migrationBuilder.InsertData(
-                table: "Countries",
-                columns: new[] { "TwoLetterCode", "CountryName", "ThreeLetterCode" },
-                values: new object[,]
-                {
-                    { "CN", "China", "CHN" },
-                    { "CY", "Cyprus", "CYP" },
-                    { "DE", "Germany", "DEU" },
-                    { "ES", "Spain", "ESP" },
-                    { "FR", "France", "FRA" },
-                    { "GR", "Greece", "GRC" },
-                    { "IT", "Italy", "ITA" },
-                    { "JP", "Japan", "JPN" },
-                    { "US", "United States", "USA" }
-                });
-
+           
             migrationBuilder.CreateIndex(
                 name: "IX_Countries_ThreeLetterCode",
                 table: "Countries",
