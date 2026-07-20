@@ -4,6 +4,6 @@ namespace ExpressYourself.Application.Infrastructure.Persistence
 {
     public interface ICountryReportRepository
     {
-        Task<IReadOnlyList<CountryReportDto>> GetAllAsync(IReadOnlyCollection<string> twoLetterCodes ,CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<CountryReportDto>> GetAllAsync(CancellationToken cancellationToken = default);
     }
 }
