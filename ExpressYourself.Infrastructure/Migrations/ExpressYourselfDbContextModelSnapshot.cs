@@ -25,6 +25,7 @@ namespace ExpressYourself.Infrastructure.Migrations
             modelBuilder.Entity("ExpressYourself.Domain.Entities.Country", b =>
                 {
                     b.Property<string>("TwoLetterCode")
+                        .IsRequired()
                         .HasMaxLength(2)
                         .HasColumnType("nchar(2)")
                         .IsFixedLength();
@@ -47,61 +48,6 @@ namespace ExpressYourself.Infrastructure.Migrations
 
                     b.ToTable("Countries", (string)null);
 
-                    b.HasData(
-                        new
-                        {
-                            TwoLetterCode = "GR",
-                            CountryName = "Greece",
-                            ThreeLetterCode = "GRC"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "IT",
-                            CountryName = "Italy",
-                            ThreeLetterCode = "ITA"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "JP",
-                            CountryName = "Japan",
-                            ThreeLetterCode = "JPN"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "ES",
-                            CountryName = "Spain",
-                            ThreeLetterCode = "ESP"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "US",
-                            CountryName = "United States",
-                            ThreeLetterCode = "USA"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "CN",
-                            CountryName = "China",
-                            ThreeLetterCode = "CHN"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "CY",
-                            CountryName = "Cyprus",
-                            ThreeLetterCode = "CYP"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "FR",
-                            CountryName = "France",
-                            ThreeLetterCode = "FRA"
-                        },
-                        new
-                        {
-                            TwoLetterCode = "DE",
-                            CountryName = "Germany",
-                            ThreeLetterCode = "DEU"
-                        });
                 });
 
             modelBuilder.Entity("ExpressYourself.Domain.Entities.IpAddress", b =>
