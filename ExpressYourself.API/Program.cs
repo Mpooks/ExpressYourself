@@ -4,6 +4,7 @@ using ExpressYourself.Application;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Gateway.Ip2c;
 using ExpressYourself.Infrastructure;
+using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.Configuration;
 using ExpressYourself.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
@@ -84,7 +85,10 @@ ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline",pipelineBuil
 
         pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
     });
-
+builder.Services.AddMemoryCache();
+builder.Services.AddOptions<CacheOptions>()
+       .Bind(builder.Configuration.GetSection(CacheOptions.SectionName))
+       .ValidateDataAnnotations();
 
 var app = builder.Build();
 
