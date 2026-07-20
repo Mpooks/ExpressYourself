@@ -21,7 +21,8 @@ public class Ip2cClientTests
                 Content = new StringContent("1;GR;Greece;Athens")
             });
 
-        var client = new Ip2cClient(new HttpClient(handler.Object));
+        var httpClient = new HttpClient(handler.Object) { BaseAddress = new Uri("https://ip2c.test/") };
+        var client = new Ip2cClient(httpClient);
 
         var result = await client.GetIpInformationAsync(
             "8.8.8.8",
@@ -41,7 +42,8 @@ public class Ip2cClientTests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()).ReturnsAsync(new HttpResponseMessage{StatusCode = HttpStatusCode.InternalServerError});
 
-        var client = new Ip2cClient(new HttpClient(handler.Object));
+        var httpClient = new HttpClient(handler.Object) { BaseAddress = new Uri("https://ip2c.test/") };
+        var client = new Ip2cClient(httpClient);
 
         await Assert.ThrowsAsync<Ip2cUnavailableException>(() =>
             client.GetIpInformationAsync(
