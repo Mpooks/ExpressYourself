@@ -10,14 +10,14 @@ public sealed class GetCountryReportQueryHandlerTests
     [Fact]
     public async Task Handle_ValidInformation_ReturnsReportFromRepository()
     {
-        //Arrange
+        
         IReadOnlyList<CountryReportDto> expected = [new("GR", "GRC", "Greece", 5), new("US", "USA", "United States", 12)];
         var repositoryMock = new Mock<ICountryReportRepository>();
         repositoryMock.Setup(repository => repository.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(expected);
         var handler = new GetCountryReportQueryHandler(repositoryMock.Object);
-        //Act
+        
         IReadOnlyList<CountryReportDto> result = await handler.Handle( new GetCountryReportQuery(), CancellationToken.None);
-        //Assert
+        
         Assert.Equal(expected, result);
         repositoryMock.Verify(repository => repository.GetAllAsync(CancellationToken.None),Times.Once);
     }

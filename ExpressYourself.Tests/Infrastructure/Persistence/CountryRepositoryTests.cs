@@ -22,7 +22,7 @@ public sealed class CountryRepositoryTests
     }
 
     [Fact]
-    public async Task Add_And_GetByTwoLetterCodeAsync_ShouldReturnCountry()
+    public async Task AddAndGetByTwoLetterCodeAsync_ValidData_ShouldReturnCountry()
     {
       
         using var context = GetInMemoryDbContext();

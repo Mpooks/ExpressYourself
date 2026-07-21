@@ -16,6 +16,22 @@ public static class IpAddressValidator
 
         string trimmedAddress = value.Trim();
 
+        var parts = trimmedAddress.Split('.');
+        if (parts.Length != 4)
+        {
+            throw new DomainValidationException(
+                "A valid IPv4 address is required.");
+        }
+
+        foreach (var part in parts)
+        {
+            if (!int.TryParse(part, out var octet) || octet < 0 || octet > 255)
+            {
+                throw new DomainValidationException(
+                    "A valid IPv4 address is required.");
+            }
+        }
+
         if (!IPAddress.TryParse(
                 trimmedAddress,
                 out IPAddress? parsedAddress) || parsedAddress.AddressFamily != AddressFamily.InterNetwork)
