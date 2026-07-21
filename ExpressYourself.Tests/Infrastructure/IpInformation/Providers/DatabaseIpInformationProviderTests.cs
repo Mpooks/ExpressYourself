@@ -1,9 +1,11 @@
 ﻿using ExpressYourself.Application.Errors;
+using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Domain.Entities;
 using ExpressYourself.Infrastructure.IpInformation.Providers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace ExpressYourself.Tests.Infrastructure.IpInformation.Providers;
@@ -17,7 +19,8 @@ public sealed class DatabaseIpInformationProviderTests
     private readonly Mock<IIpInformationProvider> _inner = new();
 
     private DatabaseIpInformationProvider CreateSut() =>
-        new(_ipAddresses.Object, _countries.Object, _inner.Object);
+        new(_ipAddresses.Object, _countries.Object, _inner.Object,
+            NullLogger<DatabaseIpInformationProvider>.Instance);
 
     private static IpAddress SuccessfulIp()
     {

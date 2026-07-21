@@ -1,5 +1,6 @@
 ﻿using Autofac;
 using ExpressYourself.Application.Behaviors;
+using ExpressYourself.Application.Interfaces;
 using MediatR;
 using MediatR.Extensions.Autofac.DependencyInjection;
 using MediatR.Extensions.Autofac.DependencyInjection.Builder;
@@ -16,6 +17,9 @@ namespace ExpressYourself.Application
                 .Build();
 
             builder.RegisterMediatR(configuration);
+            builder.RegisterAssemblyTypes(ThisAssembly)
+                .AsClosedTypesOf(typeof(IValidator<>))
+                .InstancePerLifetimeScope();
             builder.RegisterGeneric(typeof(ValidationBehavior<,>)).As(typeof(IPipelineBehavior<,>));
             builder.RegisterGeneric(typeof(LoggingBehavior<,>)).As(typeof(IPipelineBehavior<,>));
             builder.RegisterGeneric(typeof(PerformanceBehavior<,>)).As(typeof(IPipelineBehavior<,>));

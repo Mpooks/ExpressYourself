@@ -57,6 +57,10 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
             finally
             {
                 gate.Release();
+                if (gate.CurrentCount == 1)
+                {
+                    Gates.TryRemove(new KeyValuePair<string, SemaphoreSlim>(key, gate));
+                }
             }
         }
 
