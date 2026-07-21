@@ -17,7 +17,7 @@ namespace ExpressYourself.Application.Features.IpInformation.Queries
             try
             {
                 IpAddressValidator.Normalize(address);
-            } catch (DomainValidationException ex)
+            } catch (DomainValidationException)
             {
                 throw new InvalidIpAddressException($"Ip Address {address} is invalid.", address);
             }

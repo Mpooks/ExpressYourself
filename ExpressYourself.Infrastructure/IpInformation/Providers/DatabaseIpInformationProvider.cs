@@ -26,16 +26,16 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
         {
             var ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
 
-            if (ip!.Status is IpStatus.Success)
+            if (ip is not null && ip.Status is IpStatus.Success)
             {
-                var country = await _countryRepository.GetByTwoLetterCodeAsync(ip!.CountryTwoLetterCode!,cancellationToken);
+                var country = await _countryRepository.GetByTwoLetterCodeAsync(ip.CountryTwoLetterCode!,cancellationToken);
 
                 if (country is not null)
                 {
                     return new IpInformationDto(address, country.TwoLetterCode, country.ThreeLetterCode, country.CountryName);
                 }
             }
-            if (ip!.Status is IpStatus.UnknownIp)
+            if (ip is not null && ip.Status is IpStatus.UnknownIp)
             {
                 throw new UnknownIpAddressException(address);
             }

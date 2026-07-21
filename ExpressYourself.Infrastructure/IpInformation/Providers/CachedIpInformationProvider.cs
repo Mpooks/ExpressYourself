@@ -10,6 +10,7 @@ using ExpressYourself.Domain.Validation;
 using ExpressYourself.Gateway.Ip2c;
 using Microsoft.Extensions.Caching.Memory;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 
@@ -17,6 +18,8 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 {
     public class CachedIpInformationProvider : IIpInformationProvider
     {
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new();
+
         private readonly IIpInformationProvider _inner;
         private readonly IMemoryCache _cache;
         private readonly TimeSpan _ttl;
@@ -31,14 +34,41 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
         public async Task<IpInformationDto> GetIpInformationAsync(string address, CancellationToken cancellationToken)
         {
             string key = BuildKey(address);
-            if (_cache.TryGetValue(key,out IpInformationCacheEntry? entry) && entry is not null)
-            {
-                return new IpInformationDto(address, entry.TwoLetterCode, entry.ThreeLetterCode, entry.CountryName);
-            }
-            var dto = await _inner.GetIpInformationAsync(address, cancellationToken);
 
-            _cache.Set(key, new IpInformationCacheEntry(dto.CountryName, dto.TwoLetterCountryCode, dto.ThreeLetterCountryCode), _ttl);
-            return dto;
+            if (TryRead(key,address,out IpInformationDto? hit))
+            {
+                return hit!;
+            }
+            SemaphoreSlim gate = Gates.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync();
+            try
+            {
+                if (TryRead(key,address,out IpInformationDto? filledDto))
+                {
+                    return filledDto!;
+                }
+                var dto = await _inner.GetIpInformationAsync(address, cancellationToken);
+                _cache.Set(
+                    key,
+                    new IpInformationCacheEntry(dto.CountryName, dto.TwoLetterCountryCode, dto.ThreeLetterCountryCode),
+                    _ttl);
+                return dto;
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        private bool TryRead(string key, string address, out IpInformationDto? dto)
+        {
+            if (_cache.TryGetValue(key, out IpInformationCacheEntry? entry) && entry is not null)
+            {
+                dto = new IpInformationDto(address, entry.TwoLetterCode, entry.ThreeLetterCode, entry.CountryName);
+                return true;
+            }
+            dto = null;
+            return false;
         }
 
         private static string BuildKey(string address) => $"ip-info:{IpAddressValidator.Normalize(address)}";
