@@ -1,5 +1,6 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using ExpressYourself.API.ExceptionHandler;
 using ExpressYourself.Application;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Gateway.Ip2c;
@@ -92,7 +93,12 @@ builder.Services.AddOptions<CacheOptions>()
        .ValidateDataAnnotations()
        .ValidateOnStart();
 
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 CacheOptions? cacheOptions = builder.Configuration
         .GetSection(CacheOptions.SectionName)
