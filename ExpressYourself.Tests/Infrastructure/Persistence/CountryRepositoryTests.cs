@@ -3,6 +3,7 @@ using ExpressYourself.Domain.Entities;
 using ExpressYourself.Infrastructure.Persistence;
 using ExpressYourself.Infrastructure.Persistence.Context;
 using ExpressYourself.Infrastructure.Persistence.Repositories;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -48,5 +49,20 @@ public sealed class CountryRepositoryTests
         var result = await repository.GetByTwoLetterCodeAsync("XX", CancellationToken.None);
 
         Assert.Null(result);
+    }
+    [Fact]
+    public async Task GetByTwoLetterCodeAsync_WithMultipleCountries_ReturnsTheMatchingOne()
+    {
+        using var context = GetInMemoryDbContext();
+        var repo = new CountryRepository(context);
+        repo.Add(new Country("gr", "grc", "Greece"));
+        repo.Add(new Country("us", "usa", "United States"));
+        await context.SaveChangesAsync();
+
+        var result = await repo.GetByTwoLetterCodeAsync("US", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("US", result!.TwoLetterCode);
+        Assert.Equal("United States", result.CountryName);
     }
 }

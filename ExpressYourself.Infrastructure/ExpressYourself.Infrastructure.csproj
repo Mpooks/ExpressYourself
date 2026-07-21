@@ -27,4 +27,8 @@
     <ProjectReference Include="..\ExpressYourself.Domain\ExpressYourself.Domain.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="ExpressYourself.Tests" />
+	</ItemGroup>
+
 </Project>
