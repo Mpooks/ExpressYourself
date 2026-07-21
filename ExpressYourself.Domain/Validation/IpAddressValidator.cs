@@ -16,7 +16,6 @@ public static class IpAddressValidator
 
         string trimmedAddress = value.Trim();
 
-        // Require dotted-quad format (exactly 4 octets)
         var parts = trimmedAddress.Split('.');
         if (parts.Length != 4)
         {
@@ -24,7 +23,6 @@ public static class IpAddressValidator
                 "A valid IPv4 address is required.");
         }
 
-        // Each part must be numeric and within 0-255
         foreach (var part in parts)
         {
             if (!int.TryParse(part, out var octet) || octet < 0 || octet > 255)

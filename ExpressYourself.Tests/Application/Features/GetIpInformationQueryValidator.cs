@@ -12,11 +12,11 @@ public sealed class GetIpInformationQueryValidatorTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("999.1.1.1")]          // out of range
-    [InlineData("1.2.3")]              // partial dotted form
-    [InlineData("abc")]                // not numeric
-    [InlineData("::1")]                // IPv6 → wrong AddressFamily
-    [InlineData("1.2.3.4.5.6.7.8.9")]  // exceeds max length → caught by length guard
+    [InlineData("999.1.1.1")]
+    [InlineData("1.2.3")]          
+    [InlineData("abc")]
+    [InlineData("::1")]
+    [InlineData("1.2.3.4.5.6.7.8.9")]
     public void ValidateAndThrow_InvalidInput_Throws(string? input)
     {
         var query = new GetIpInformationQuery(input!);
@@ -26,7 +26,7 @@ public sealed class GetIpInformationQueryValidatorTests
     [Theory]
     [InlineData("1.2.3.4")]
     [InlineData("255.255.255.255")]
-    [InlineData("  8.8.8.8  ")]        // surrounding whitespace tolerated
+    [InlineData("  8.8.8.8  ")]        
     public void ValidateAndThrow_ValidIpv4_DoesNotThrow(string input)
     {
         var query = new GetIpInformationQuery(input);
