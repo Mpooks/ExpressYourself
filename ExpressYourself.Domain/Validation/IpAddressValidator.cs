@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace ExpressYourself.Domain.Validation;
 
-internal static class IpAddressValidator
+public static class IpAddressValidator
 {
     public static string Normalize(string value)
     {

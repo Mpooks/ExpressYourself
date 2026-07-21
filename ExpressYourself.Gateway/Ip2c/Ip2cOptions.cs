@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ExpressYourself.Infrastructure.Ip2c;
+namespace ExpressYourself.Gateway.Ip2c;
 
-public sealed class Ip2cOptions
+public class Ip2cOptions
 {
     public const string SectionName = "Ip2c";
 
