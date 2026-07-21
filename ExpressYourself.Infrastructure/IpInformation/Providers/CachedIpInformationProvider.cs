@@ -1,80 +1,113 @@
 ﻿using ExpressYourself.Application.Caching;
-using ExpressYourself.Application.Errors;
-using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
-using ExpressYourself.Application.Infrastructure.Persistence;
-using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Application.Strategies;
-using ExpressYourself.Domain.Entities;
 using ExpressYourself.Domain.Validation;
-using ExpressYourself.Gateway.Ip2c;
-using Microsoft.Extensions.Caching.Memory;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
 
 namespace ExpressYourself.Infrastructure.IpInformation.Providers
 {
     public class CachedIpInformationProvider : IIpInformationProvider
     {
-        private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new();
+        private static readonly object GatesLock = new();
+
+        private static readonly Dictionary<string, GateEntry> Gates = new(StringComparer.Ordinal);
 
         private readonly IIpInformationProvider _inner;
-        private readonly IMemoryCache _cache;
-        private readonly TimeSpan _ttl;
+        private readonly IIpInformationCache _cache;
 
-        public CachedIpInformationProvider(IIpInformationProvider inner, IMemoryCache cache, TimeSpan ttl)
+        public CachedIpInformationProvider(IIpInformationProvider inner, IIpInformationCache cache)
         {
+            ArgumentNullException.ThrowIfNull(inner);
+            ArgumentNullException.ThrowIfNull(cache);
+
             _inner = inner;
             _cache = cache;
-            _ttl = ttl;
         }
 
         public async Task<IpInformationDto> GetIpInformationAsync(string address, CancellationToken cancellationToken)
         {
-            string key = BuildKey(address);
+            string normalizedAddress = IpAddressValidator.Normalize(address);
 
-            if (TryRead(key,address,out IpInformationDto? hit))
+            IpInformationCacheEntry? cachedEntry = await _cache.GetAsync(normalizedAddress, cancellationToken);
+
+            if (cachedEntry is not null)
             {
-                return hit!;
+                return CreateDto(address, cachedEntry);
             }
-            SemaphoreSlim gate = Gates.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync();
+
+            GateEntry gate = RentGate(normalizedAddress);
+
             try
             {
-                if (TryRead(key,address,out IpInformationDto? filledDto))
+                await gate.Semaphore.WaitAsync(cancellationToken);
+
+                try
                 {
-                    return filledDto!;
+                    cachedEntry = await _cache.GetAsync(normalizedAddress, cancellationToken);
+
+                    if (cachedEntry is not null)
+                    {
+                        return CreateDto(address, cachedEntry);
+                    }
+
+                    IpInformationDto result = await _inner.GetIpInformationAsync(address, cancellationToken);
+
+                    var entry = new IpInformationCacheEntry(result.CountryName, result.TwoLetterCountryCode, result.ThreeLetterCountryCode);
+
+                    await _cache.SetAsync(normalizedAddress, entry, cancellationToken);
+
+                    return result;
                 }
-                var dto = await _inner.GetIpInformationAsync(address, cancellationToken);
-                _cache.Set(
-                    key,
-                    new IpInformationCacheEntry(dto.CountryName, dto.TwoLetterCountryCode, dto.ThreeLetterCountryCode),
-                    _ttl);
-                return dto;
+                finally
+                {
+                    gate.Semaphore.Release();
+                }
             }
             finally
             {
-                gate.Release();
-                if (gate.CurrentCount == 1)
+                ReturnGate(normalizedAddress, gate);
+            }
+        }
+
+        private static IpInformationDto CreateDto(string address, IpInformationCacheEntry entry)
+        {
+            return new IpInformationDto(address, entry.TwoLetterCode, entry.ThreeLetterCode, entry.CountryName);
+        }
+
+        private static GateEntry RentGate(string key)
+        {
+            lock (GatesLock)
+            {
+                if (!Gates.TryGetValue(key, out GateEntry? gate))
                 {
-                    Gates.TryRemove(new KeyValuePair<string, SemaphoreSlim>(key, gate));
+                    gate = new GateEntry();
+                    Gates.Add(key, gate);
+                }
+
+                gate.ReferenceCount++;
+
+                return gate;
+            }
+        }
+
+        private static void ReturnGate(string key, GateEntry gate)
+        {
+            lock (GatesLock)
+            {
+                gate.ReferenceCount--;
+
+                if (gate.ReferenceCount == 0)
+                {
+                    Gates.Remove(key);
+                    gate.Semaphore.Dispose();
                 }
             }
         }
 
-        private bool TryRead(string key, string address, out IpInformationDto? dto)
+        private sealed class GateEntry
         {
-            if (_cache.TryGetValue(key, out IpInformationCacheEntry? entry) && entry is not null)
-            {
-                dto = new IpInformationDto(address, entry.TwoLetterCode, entry.ThreeLetterCode, entry.CountryName);
-                return true;
-            }
-            dto = null;
-            return false;
-        }
+            public SemaphoreSlim Semaphore { get; } = new(1, 1);
 
-        private static string BuildKey(string address) => $"ip-info:{IpAddressValidator.Normalize(address)}";
+            public int ReferenceCount { get; set; }
+        }
     }
 }
