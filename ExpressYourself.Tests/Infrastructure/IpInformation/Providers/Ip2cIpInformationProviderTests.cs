@@ -272,6 +272,47 @@ public sealed class Ip2cIpInformationProviderTests
         _cache.Verify(c => c.RemoveAsync(It.IsAny<string>(),It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Handle_Success_ChangedCountryMetadata_InvalidatesCountryAddresses()
+    {
+        const string secondAddress = "5.6.7.8";
+
+        var existingIp = new IpAddress(Address);
+        existingIp.SetCountry("GR", Now.AddHours(-1));
+
+        var existingCountry = new Country("GR", "GRE", "Old Greece");
+
+        SetupSuccessfulLookup();
+
+        _ipAddresses
+            .Setup(r => r.GetByAddressAsync(Address, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingIp);
+
+        _countries
+            .Setup(r => r.GetByTwoLetterCodeAsync("GR", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingCountry);
+
+        _ipAddresses
+            .Setup(r => r.GetAddressesByCountryCodeAsync( "GR", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { Address, secondAddress });
+
+        var sut = CreateSut();
+
+        await sut.GetIpInformationAsync(Address, CancellationToken.None);
+
+        Assert.Equal("GRC", existingCountry.ThreeLetterCode);
+        Assert.Equal("Greece", existingCountry.CountryName);
+
+        _ipAddresses.Verify(
+            r => r.GetAddressesByCountryCodeAsync("GR", CancellationToken.None), Times.Once);
+
+        _cache.Verify(c => c.RemoveAsync(Address, CancellationToken.None), Times.Once);
+
+        _cache.Verify(c => c.RemoveAsync(secondAddress, CancellationToken.None), Times.Once);
+
+        _cache.Verify(c => c.RemoveAsync(It.IsAny<string>(), CancellationToken.None), Times.Exactly(2));
+    }
+
     private void SetupSuccessfulLookup()
     {
         _client

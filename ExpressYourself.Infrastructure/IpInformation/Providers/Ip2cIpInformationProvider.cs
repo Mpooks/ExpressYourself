@@ -31,17 +31,20 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 
         public async Task<IpInformationDto> GetIpInformationAsync(string address, CancellationToken cancellationToken)
         {
-            Ip2cLookupResult result =
-                await _client.GetIpInformationAsync(address, cancellationToken);
+            Ip2cLookupResult result = await _client.GetIpInformationAsync(address, cancellationToken);
 
             DateTimeOffset now = _clock.GetUtcNow();
 
             switch (result.Status)
             {
                 case Ip2cLookupStatus.Success:
-                    bool successChanged = await PersistSuccessAsync(address, result, now, cancellationToken);
+                    var changes = await PersistSuccessAsync(address, result, now, cancellationToken);
 
-                    if (successChanged)
+                    if (changes.CountryChanged)
+                    {
+                        await InvalidateCountryAsync(changes.CountryCode, cancellationToken);
+                    }
+                    else if (changes.IpChanged)
                     {
                         await _cache.RemoveAsync(address, cancellationToken);
                     }
@@ -49,7 +52,7 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
                     return new IpInformationDto(address, result.TwoLetterCode!, result.ThreeLetterCode!, result.CountryName!);
 
                 case Ip2cLookupStatus.Unknown:
-                    bool unknownChanged = await PersistUnknownAsync(address, now, cancellationToken);
+                    bool unknownChanged = await PersistUnknownAsync( address, now, cancellationToken);
 
                     if (unknownChanged)
                     {
@@ -64,7 +67,7 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
             }
         }
 
-        private async Task<bool> PersistSuccessAsync(string address, Ip2cLookupResult result, DateTimeOffset now, CancellationToken cancellationToken)
+        private async Task<(bool IpChanged, bool CountryChanged, string CountryCode)> PersistSuccessAsync(string address, Ip2cLookupResult result, DateTimeOffset now, CancellationToken cancellationToken)
         {
             IpAddress? ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
 
@@ -74,22 +77,27 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
                 _ipAddressRepository.Add(ip);
             }
 
-            bool ipInformationChanged = ip.SetCountry(result.TwoLetterCode!, now);
+            bool ipChanged = ip.SetCountry(result.TwoLetterCode!, now);
 
             Country? country = await _countries.GetByTwoLetterCodeAsync(result.TwoLetterCode!, cancellationToken);
 
+            bool countryChanged;
+
             if (country is null)
             {
-                _countries.Add(new Country(result.TwoLetterCode!, result.ThreeLetterCode!, result.CountryName!));
+                country = new Country(result.TwoLetterCode!, result.ThreeLetterCode!, result.CountryName!);
+
+                _countries.Add(country);
+                countryChanged = false;
             }
             else
             {
-                country.UpdateInformation(result.ThreeLetterCode!, result.CountryName!);
+                countryChanged = country.UpdateInformation(result.ThreeLetterCode!, result.CountryName!);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return ipInformationChanged;
+            return (ipChanged, countryChanged, country.TwoLetterCode);
         }
 
         private async Task<bool> PersistUnknownAsync(string address, DateTimeOffset now, CancellationToken cancellationToken)
@@ -107,6 +115,16 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return ipInformationChanged;
+        }
+
+        private async Task InvalidateCountryAsync(string countryCode, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<string> addresses = await _ipAddressRepository.GetAddressesByCountryCodeAsync(countryCode, cancellationToken);
+
+            foreach (string cachedAddress in addresses)
+            {
+                await _cache.RemoveAsync(cachedAddress, cancellationToken);
+            }
         }
     }
 }

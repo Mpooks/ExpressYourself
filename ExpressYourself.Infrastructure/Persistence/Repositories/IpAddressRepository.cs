@@ -17,7 +17,16 @@ public sealed class IpAddressRepository : IIpAddressRepository
     public async Task<IpAddress?> GetByAddressAsync(string address, CancellationToken cancellationToken)
     {
         return await _context.IpAddresses
-        .FirstOrDefaultAsync(i => i.Address == address, cancellationToken);
+            .FirstOrDefaultAsync(ipAddress => ipAddress.Address == address, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAddressesByCountryCodeAsync(string twoLetterCode, CancellationToken cancellationToken)
+    {
+        return await _context.IpAddresses
+            .AsNoTracking()
+            .Where(ipAddress => ipAddress.CountryTwoLetterCode == twoLetterCode)
+            .Select(ipAddress => ipAddress.Address)
+            .ToListAsync(cancellationToken);
     }
 
     public void Add(IpAddress ipAddress)
