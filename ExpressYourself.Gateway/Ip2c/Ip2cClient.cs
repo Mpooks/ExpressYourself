@@ -1,7 +1,6 @@
 ﻿using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Validation;
 using ExpressYourself.Gateway.Exceptions;
-using System.Runtime.InteropServices.Marshalling;
 
 namespace ExpressYourself.Gateway.Ip2c;
 

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpressYourself.Infrastructure.Persistence.Repositories;
 
-internal sealed class IpAddressRepository : IIpAddressRepository
+public sealed class IpAddressRepository : IIpAddressRepository
 {
     private readonly ExpressYourselfDbContext _context;
 

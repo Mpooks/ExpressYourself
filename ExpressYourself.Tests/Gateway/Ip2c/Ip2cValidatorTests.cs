@@ -27,7 +27,7 @@ public class Ip2cOptionsValidatorTests
     {
         var options = new Ip2cOptions
         {
-            BaseUrl = "kostas-mitroglou",
+            BaseUrl = "test-wrong-url-test-",
             TimeoutSeconds = 5
         };
 
