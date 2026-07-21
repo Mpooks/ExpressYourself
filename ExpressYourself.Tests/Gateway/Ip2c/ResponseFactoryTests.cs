@@ -3,6 +3,8 @@ using ExpressYourself.Gateway.Ip2c;
 using ExpressYourself.Gateway.Exceptions;
 using ExpressYourself.Application.Interfaces;
 
+namespace ExpressYourself.Tests.Gateway.Ip2c;
+
 public class Ip2cResponseFactoryTests
 {
     [Fact]
