@@ -6,6 +6,7 @@ using System.Net;
 using Xunit;
 
 namespace ExpressYourself.Tests.Gateway.Ip2c;
+
 public class Ip2cClientTests
 {
     [Fact]
@@ -14,20 +15,26 @@ public class Ip2cClientTests
         var handler = new Mock<HttpMessageHandler>();
 
         handler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync",ItExpr.IsAny<HttpRequestMessage>(),ItExpr.IsAny<CancellationToken>())
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("1;GR;Greece;Athens")
+                Content = new StringContent("1;GR;GRC;Greece")
             });
 
-        var client = new Ip2cClient(new HttpClient(handler.Object));
+        var httpClient = new HttpClient(handler.Object)
+        {
+            BaseAddress = new Uri("https://ip2c.org/")
+        };
+
+        var client = new Ip2cClient(httpClient);
 
         var result = await client.GetIpInformationAsync(
             "8.8.8.8",
             CancellationToken.None);
 
         Assert.NotNull(result);
+        Assert.Equal(Ip2cLookupStatus.Success, result.Status);
     }
 
 
@@ -39,9 +46,14 @@ public class Ip2cClientTests
         handler.Protected().Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>()).ReturnsAsync(new HttpResponseMessage{StatusCode = HttpStatusCode.InternalServerError});
+                ItExpr.IsAny<CancellationToken>()).ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.InternalServerError });
 
-        var client = new Ip2cClient(new HttpClient(handler.Object));
+        var httpClient = new HttpClient(handler.Object)
+        {
+            BaseAddress = new Uri("https://ip2c.org/")
+        };
+
+        var client = new Ip2cClient(httpClient);
 
         await Assert.ThrowsAsync<Ip2cUnavailableException>(() =>
             client.GetIpInformationAsync(

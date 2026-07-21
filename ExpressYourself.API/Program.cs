@@ -76,7 +76,7 @@ ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline",pipelineBuil
         pipelineBuilder.AddCircuitBreaker(
             new HttpCircuitBreakerStrategyOptions
             {
-                FailureRatio = 1.0,
+                FailureRatio = 0.9,
                 MinimumThroughput =ip2cOptions.CircuitBreakerFailureCount,
                 SamplingDuration =TimeSpan.FromSeconds(30),
                 BreakDuration =TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
