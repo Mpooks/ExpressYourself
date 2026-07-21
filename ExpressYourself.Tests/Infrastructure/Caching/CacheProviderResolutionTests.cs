@@ -25,13 +25,13 @@ public sealed class CacheProviderResolutionTests
     }
 
     [Fact]
-    public void Resolve_RedisProvider_ReturnsRedisCache()
+    public void Resolve_RedisProvider_ReturnsFallbackCache()
     {
         using IContainer container = BuildContainer("Redis");
 
         IIpInformationCache cache = container.Resolve<IIpInformationCache>();
 
-        Assert.IsType<RedisIpInformationCache>(cache);
+        Assert.IsType<FallbackIpInformationCache>(cache);
     }
 
     private static IContainer BuildContainer(string provider)
@@ -56,6 +56,9 @@ public sealed class CacheProviderResolutionTests
 
         builder.RegisterInstance(NullLogger<RedisIpInformationCache>.Instance)
             .As<ILogger<RedisIpInformationCache>>();
+
+        builder.RegisterInstance(NullLogger<FallbackIpInformationCache>.Instance)
+            .As<ILogger<FallbackIpInformationCache>>();
 
         return builder.Build();
     }

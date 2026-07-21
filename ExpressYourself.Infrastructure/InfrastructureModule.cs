@@ -9,6 +9,7 @@ using ExpressYourself.Infrastructure.IpInformation.Providers;
 using ExpressYourself.Infrastructure.Persistence.Context;
 using ExpressYourself.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace ExpressYourself.Infrastructure
 {
@@ -38,7 +39,7 @@ namespace ExpressYourself.Infrastructure
                 return options.Provider switch
                 {
                     "Memory" => context.ResolveNamed<IIpInformationCache>(MemoryCacheName),
-                    "Redis" => context.ResolveNamed<IIpInformationCache>(RedisCacheName),
+                    "Redis" => CreateRedisCache(context),
                     _ => throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.")
                 };
             })
@@ -64,6 +65,15 @@ namespace ExpressYourself.Infrastructure
             })
             .As<IIpInformationProvider>()
             .InstancePerLifetimeScope();
+        }
+
+        private static IIpInformationCache CreateRedisCache(
+            IComponentContext context)
+        {
+            return new FallbackIpInformationCache(
+                context.ResolveNamed<IIpInformationCache>(RedisCacheName),
+                context.ResolveNamed<IIpInformationCache>(MemoryCacheName),
+                context.Resolve<ILogger<FallbackIpInformationCache>>());
         }
     }
 }
