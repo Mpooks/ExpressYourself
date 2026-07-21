@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpressYourself.Infrastructure.Persistence.Repositories;
 
-internal sealed class CountryRepository : ICountryRepository
+public sealed class CountryRepository : ICountryRepository
 {
     private readonly ExpressYourselfDbContext _context;
 

@@ -9,20 +9,20 @@ namespace ExpressYourself.Gateway.Ip2c
         {
             if (string.IsNullOrWhiteSpace(rawResponse))
             {
-               throw new Ip2cResponseFormatException(nameof(rawResponse));
+                throw new Ip2cResponseFormatException("Response cannot be null or empty.");
             }
 
             var responseParts=rawResponse.Split(';');
             if (responseParts.Length != 4) 
             {
-                throw new Ip2cResponseFormatException("Invalid IP2C reponse. Format must be [Status, TwoLetterCode, ThreeLetterCode, CountryName].");
+                throw new Ip2cResponseFormatException("Invalid IP2C response. Format must be [Status, TwoLetterCode, ThreeLetterCode, CountryName].");
             }
 
             var status = responseParts[0] switch
             {
+                "0" => Ip2cLookupStatus.Invalid,
                 "1" => Ip2cLookupStatus.Success,
-                "0" => Ip2cLookupStatus.Unknown,
-                "2" => Ip2cLookupStatus.Invalid,
+                "2" => Ip2cLookupStatus.Unknown,
                 _ => throw new Ip2cResponseFormatException($"Unknown status '{responseParts[0]}'.")
             };
 

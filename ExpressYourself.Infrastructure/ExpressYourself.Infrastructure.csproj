@@ -32,4 +32,8 @@
     <Folder Include="Ip2c\" />
   </ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="ExpressYourself.Tests" />
+	</ItemGroup>
+
 </Project>
