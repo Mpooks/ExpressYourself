@@ -85,6 +85,31 @@ public sealed class MemoryIpInformationCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task SetAsync_UnknownEntry_UsesConfiguredNegativeTtl()
+    {
+        var memoryCache = new Mock<IMemoryCache>();
+        var cacheEntry = new Mock<ICacheEntry>();
+
+        cacheEntry.SetupAllProperties();
+
+        memoryCache
+            .Setup(cache => cache.CreateEntry(It.IsAny<object>()))
+            .Returns(cacheEntry.Object);
+
+        var cache = new MemoryIpInformationCache(
+            memoryCache.Object,
+            Options.Create(new CacheOptions
+            {
+                DefaultTtlMinutes = 15,
+                NegativeTtlSeconds = 30
+            }));
+
+        await cache.SetAsync(Address, IpInformationCacheEntry.Unknown, CancellationToken.None);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), cacheEntry.Object.AbsoluteExpirationRelativeToNow);
+    }
+
+    [Fact]
     public async Task SetAsync_NullEntry_ThrowsArgumentNullException()
     {
         var cache = CreateCache();

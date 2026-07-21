@@ -9,6 +9,7 @@ namespace ExpressYourself.Infrastructure.Caching
     {
         private readonly IMemoryCache _cache;
         private readonly TimeSpan _ttl;
+        private readonly TimeSpan _negativeTtl;
 
         public MemoryIpInformationCache(IMemoryCache cache, IOptions<CacheOptions> options)
         {
@@ -17,7 +18,7 @@ namespace ExpressYourself.Infrastructure.Caching
 
             _cache = cache;
             _ttl = TimeSpan.FromMinutes(options.Value.DefaultTtlMinutes);
-
+            _negativeTtl = TimeSpan.FromSeconds(options.Value.NegativeTtlSeconds);
         }
 
         public Task<IpInformationCacheEntry?> GetAsync(string address, CancellationToken cancellationToken)
@@ -37,8 +38,9 @@ namespace ExpressYourself.Infrastructure.Caching
             ArgumentNullException.ThrowIfNull(entry);
 
             string key = IpInformationCacheKeys.ForAddress(address);
+            TimeSpan ttl = entry.IsUnknown ? _negativeTtl : _ttl;
 
-            _cache.Set(key, entry, _ttl);
+            _cache.Set(key, entry, ttl);
 
             return Task.CompletedTask;
         }

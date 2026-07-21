@@ -14,6 +14,7 @@ internal sealed class RedisIpInformationCache : IIpInformationCache
     private readonly IDistributedCache _cache;
     private readonly ILogger<RedisIpInformationCache> _logger;
     private readonly TimeSpan _ttl;
+    private readonly TimeSpan _negativeTtl;
 
     public RedisIpInformationCache(IDistributedCache cache, IOptions<CacheOptions> options, ILogger<RedisIpInformationCache> logger)
     {
@@ -24,6 +25,8 @@ internal sealed class RedisIpInformationCache : IIpInformationCache
         _cache = cache;
         _logger = logger;
         _ttl = TimeSpan.FromMinutes(options.Value.DefaultTtlMinutes);
+        _negativeTtl =
+            TimeSpan.FromSeconds(options.Value.NegativeTtlSeconds);
     }
 
     public async Task<IpInformationCacheEntry?> GetAsync(string address, CancellationToken cancellationToken)
@@ -67,9 +70,13 @@ internal sealed class RedisIpInformationCache : IIpInformationCache
 
         byte[] value = JsonSerializer.SerializeToUtf8Bytes(entry, SerializerOptions);
 
+        TimeSpan ttl = entry.IsUnknown
+            ? _negativeTtl
+            : _ttl;
+
         var options = new DistributedCacheEntryOptions
         {
-            AbsoluteExpirationRelativeToNow = _ttl
+            AbsoluteExpirationRelativeToNow = ttl
         };
 
         await _cache.SetAsync(key, value, options, cancellationToken);

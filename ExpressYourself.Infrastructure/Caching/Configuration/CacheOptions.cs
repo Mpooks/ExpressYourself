@@ -20,6 +20,9 @@ namespace ExpressYourself.Infrastructure.Caching.Configuration
         [Range(1, 10_080)]
         public int DefaultTtlMinutes { get; init; } = 60;
 
+        [Range(1, 3_600)]
+        public int NegativeTtlSeconds { get; init; } = 60;
+
         public bool UsesMemory => string.Equals(Provider, MemoryProvider, StringComparison.OrdinalIgnoreCase);
 
         public bool UsesRedis => string.Equals(Provider, RedisProvider, StringComparison.OrdinalIgnoreCase);

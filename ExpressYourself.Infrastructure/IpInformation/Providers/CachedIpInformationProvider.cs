@@ -1,4 +1,6 @@
 ﻿using ExpressYourself.Application.Caching;
+using ExpressYourself.Application.Errors;
+using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Domain.Validation;
@@ -49,9 +51,20 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
                         return CreateDto(address, cachedEntry);
                     }
 
-                    IpInformationDto result = await _inner.GetIpInformationAsync(address, cancellationToken);
+                    IpInformationDto result;
 
-                    var entry = new IpInformationCacheEntry(result.CountryName, result.TwoLetterCountryCode, result.ThreeLetterCountryCode);
+                    try
+                    {
+                        result = await _inner.GetIpInformationAsync(address, cancellationToken);
+                    }
+                    catch (UnknownIpAddressException)
+                    {
+                        await _cache.SetAsync( normalizedAddress, IpInformationCacheEntry.Unknown, cancellationToken);
+
+                        throw;
+                    }
+
+                    var entry = new IpInformationCacheEntry(result.CountryName, result.TwoLetterCountryCode,  result.ThreeLetterCountryCode);
 
                     await _cache.SetAsync(normalizedAddress, entry, cancellationToken);
 
@@ -70,7 +83,12 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 
         private static IpInformationDto CreateDto(string address, IpInformationCacheEntry entry)
         {
-            return new IpInformationDto(address, entry.TwoLetterCode, entry.ThreeLetterCode, entry.CountryName);
+            if (entry.IsUnknown)
+            {
+                throw new UnknownIpAddressException(address);
+            }
+
+            return new IpInformationDto(address, entry.TwoLetterCode!, entry.ThreeLetterCode!, entry.CountryName!);
         }
 
         private static GateEntry RentGate(string key)

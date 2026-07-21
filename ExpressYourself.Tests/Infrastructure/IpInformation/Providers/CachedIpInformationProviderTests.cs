@@ -169,9 +169,9 @@ public sealed class CachedIpInformationProviderTests
     }
 
     [Fact]
-    public async Task InnerThrowsUnknown_DoesNotCacheResult()
+    public async Task InnerThrowsUnknown_CachesResultAndSkipsNextInnerCall()
     {
-        SetupEmptyCache();
+        SetupStatefulCache();
 
         _inner
             .Setup(provider => provider.GetIpInformationAsync(Address, It.IsAny<CancellationToken>()))
@@ -179,25 +179,29 @@ public sealed class CachedIpInformationProviderTests
 
         var sut = CreateSut();
 
-        await Assert.ThrowsAsync<UnknownIpAddressException>(() =>
-            sut.GetIpInformationAsync(
-                Address,
-                CancellationToken.None));
+        await Assert.ThrowsAsync<UnknownIpAddressException>(() => sut.GetIpInformationAsync(Address, CancellationToken.None));
 
-        await Assert.ThrowsAsync<UnknownIpAddressException>(() =>
-            sut.GetIpInformationAsync(
-                Address,
-                CancellationToken.None));
+        await Assert.ThrowsAsync<UnknownIpAddressException>(() => sut.GetIpInformationAsync(Address, CancellationToken.None));
 
-        _inner.Verify(
-            provider => provider.GetIpInformationAsync(Address, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _inner.Verify(provider => provider.GetIpInformationAsync(Address,It.IsAny<CancellationToken>()), Times.Once);
 
-        _cache.Verify(
-            cache => cache.SetAsync(
-                It.IsAny<string>(),
-                It.IsAny<IpInformationCacheEntry>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
+        _cache.Verify(cache => cache.SetAsync(Address, It.Is<IpInformationCacheEntry>(entry => entry.IsUnknown), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task InnerThrowsUnexpectedError_DoesNotCacheResult()
+    {
+        SetupEmptyCache();
+
+        _inner
+            .Setup(provider => provider.GetIpInformationAsync(Address, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Provider failed."));
+
+        var sut = CreateSut();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.GetIpInformationAsync(Address, CancellationToken.None));
+
+        _cache.Verify(cache => cache.SetAsync(It.IsAny<string>(), It.IsAny<IpInformationCacheEntry>(),It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
