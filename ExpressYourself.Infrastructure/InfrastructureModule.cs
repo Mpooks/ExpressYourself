@@ -4,14 +4,19 @@ using ExpressYourself.Application.Caching;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Infrastructure.Caching;
+using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.IpInformation.Providers;
 using ExpressYourself.Infrastructure.Persistence.Context;
 using ExpressYourself.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Options;
 
 namespace ExpressYourself.Infrastructure
 {
     public class InfrastructureModule : Module
     {
+        private const string MemoryCacheName = "memory";
+        private const string RedisCacheName = "redis";
+
         protected override void Load(ContainerBuilder builder)
         {
             builder.RegisterType<UnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
@@ -19,8 +24,26 @@ namespace ExpressYourself.Infrastructure
             builder.RegisterType<IpAddressRepository>().As<IIpAddressRepository>().InstancePerLifetimeScope();
 
             builder.RegisterType<MemoryIpInformationCache>()
-                   .As<IIpInformationCache>()
+                   .Named<IIpInformationCache>(MemoryCacheName)
                    .SingleInstance();
+
+            builder.RegisterType<RedisIpInformationCache>()
+                   .Named<IIpInformationCache>(RedisCacheName)
+                   .SingleInstance();
+
+            builder.Register(context =>
+            {
+                CacheOptions options = context.Resolve<IOptions<CacheOptions>>().Value;
+
+                return options.Provider switch
+                {
+                    "Memory" => context.ResolveNamed<IIpInformationCache>(MemoryCacheName),
+                    "Redis" => context.ResolveNamed<IIpInformationCache>(RedisCacheName),
+                    _ => throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.")
+                };
+            })
+            .As<IIpInformationCache>()
+            .SingleInstance();
 
             builder.RegisterType<Ip2cIpInformationProvider>()
                    .Named<IIpInformationProvider>("ip2c")
@@ -31,10 +54,11 @@ namespace ExpressYourself.Infrastructure
                    .WithParameter(ResolvedParameter.ForNamed<IIpInformationProvider>("ip2c"))
                    .InstancePerLifetimeScope();
 
-            builder.Register(c =>
+            builder.Register(context =>
             {
-                var inner = c.ResolveNamed<IIpInformationProvider>("database");
-                var cache = c.Resolve<IIpInformationCache>();
+                var inner = context.ResolveNamed<IIpInformationProvider>("database");
+
+                var cache = context.Resolve<IIpInformationCache>();
 
                 return new CachedIpInformationProvider(inner, cache);
             })

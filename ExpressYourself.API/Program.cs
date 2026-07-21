@@ -94,6 +94,31 @@ builder.Services.AddOptions<CacheOptions>()
 
 var app = builder.Build();
 
+CacheOptions? cacheOptions = builder.Configuration
+        .GetSection(CacheOptions.SectionName)
+        .Get<CacheOptions>();
+
+if (cacheOptions is null)
+{
+    throw new InvalidOperationException("Cache configuration is missing.");
+}
+
+if (cacheOptions.Provider == "Redis")
+{
+    string? redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+
+    if (string.IsNullOrWhiteSpace(redisConnectionString))
+    {
+        throw new InvalidOperationException("Redis connection string is required when Redis cache is enabled.");
+    }
+
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "ExpressYourself:";
+    });
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
