@@ -37,8 +37,8 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-builder.Services.AddSingleton<IValidateOptions<Ip2cOptions>,Ip2cOptionsValidator>();
-Ip2cOptions? ip2cOptions =builder.Configuration.GetSection(Ip2cOptions.SectionName).Get<Ip2cOptions>();
+builder.Services.AddSingleton<IValidateOptions<Ip2cOptions>, Ip2cOptionsValidator>();
+Ip2cOptions? ip2cOptions = builder.Configuration.GetSection(Ip2cOptions.SectionName).Get<Ip2cOptions>();
 if (ip2cOptions is null)
 {
     throw new InvalidOperationException("Ip2c configuration is missing");
@@ -63,32 +63,34 @@ IHttpClientBuilder ip2cHttpClientBuilder =
         });
 
 
-ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline",pipelineBuilder =>
-    {
-        pipelineBuilder.AddRetry(
-            new HttpRetryStrategyOptions
-            {
-                MaxRetryAttempts = ip2cOptions.RetryCount,
-                Delay = TimeSpan.FromMilliseconds(500),
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true
-            });
+ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBuilder =>
+{
+    pipelineBuilder.AddRetry(
+        new HttpRetryStrategyOptions
+        {
+            MaxRetryAttempts = ip2cOptions.RetryCount,
+            Delay = TimeSpan.FromMilliseconds(500),
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true
+        });
 
-        pipelineBuilder.AddCircuitBreaker(
-            new HttpCircuitBreakerStrategyOptions
-            {
-                FailureRatio = 0.9,
-                MinimumThroughput =ip2cOptions.CircuitBreakerFailureCount,
-                SamplingDuration =TimeSpan.FromSeconds(30),
-                BreakDuration =TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
-            });
+    pipelineBuilder.AddCircuitBreaker(
+        new HttpCircuitBreakerStrategyOptions
+        {
+            FailureRatio = 0.9,
+            MinimumThroughput = ip2cOptions.CircuitBreakerFailureCount,
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
+        });
 
-        pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
-    });
+    pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
+});
+
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions<CacheOptions>()
        .Bind(builder.Configuration.GetSection(CacheOptions.SectionName))
-       .ValidateDataAnnotations();
+       .ValidateDataAnnotations()
+       .ValidateOnStart();
 
 var app = builder.Build();
 
