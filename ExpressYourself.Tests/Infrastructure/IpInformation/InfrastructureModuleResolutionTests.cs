@@ -16,7 +16,7 @@ namespace ExpressYourself.Tests.Infrastructure.IpInformation;
 public sealed class InfrastructureModuleResolutionTests
 {
     [Fact]
-    public void ResolvesProviderChain_WithTtlFromOptions()
+    public void Build_ResolvesProviderChain_WithTtlFromOptions()
     {
         var builder = new ContainerBuilder();
         builder.RegisterModule(new InfrastructureModule());

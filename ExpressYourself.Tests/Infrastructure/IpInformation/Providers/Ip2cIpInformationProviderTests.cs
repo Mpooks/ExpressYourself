@@ -32,7 +32,7 @@ public sealed class Ip2cIpInformationProviderTests
         new(_client.Object, _ipAddresses.Object, _countries.Object, _unitOfWork.Object, _clock.Object);
 
     [Fact]
-    public async Task Handle_Success_NewIp_ReturnsMappedDto_AndPersistsOnce()
+    public async Task Handle_Success_NewIp_ReturnsMappedDtoAndPersistsOnce()
     {
         // Arrange
         _client.Setup(c => c.GetIpInformationAsync(Address, It.IsAny<CancellationToken>()))
@@ -59,7 +59,7 @@ public sealed class Ip2cIpInformationProviderTests
     }
 
     [Fact]
-    public async Task Handle_Success_ExistingRows_DoesNotAddAgain()
+    public async Task Handle_Success_ExistingRowsDoesNotAddAgain()
     {
         // Arrange
         var existingIp = new IpAddress(Address);
@@ -101,7 +101,7 @@ public sealed class Ip2cIpInformationProviderTests
     }
 
     [Fact]
-    public async Task Handle_Invalid_Throws_WithoutPersisting()
+    public async Task Handle_Invalid_ThrowsWithoutPersisting()
     {
         // Arrange
         _client.Setup(c => c.GetIpInformationAsync(Address, It.IsAny<CancellationToken>()))

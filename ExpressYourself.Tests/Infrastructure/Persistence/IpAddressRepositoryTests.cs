@@ -20,7 +20,7 @@ public sealed class IpAddressRepositoryTests
     }
 
     [Fact]
-    public async Task Add_And_GetByAddressAsync_ShouldReturnIpAddress()
+    public async Task AddAndGetByAddressAsync_ValidData_ShouldReturnIpAddress()
     {
 
         using var context = GetInMemoryDbContext();

@@ -30,7 +30,7 @@ public sealed class DatabaseIpInformationProviderTests
     }
 
     [Fact]
-    public async Task Handle_SuccessHit_ReturnsDtoFromDatabase_NoExternalCall()
+    public async Task Handle_SuccessHit_ReturnsDtoFromDatabaseWithNoExternalCall()
     {
         
         _ipAddresses.Setup(r => r.GetByAddressAsync(Address, It.IsAny<CancellationToken>()))
@@ -47,7 +47,7 @@ public sealed class DatabaseIpInformationProviderTests
     }
 
     [Fact]
-    public async Task Handle_Miss_DelegatesToInner_Once()
+    public async Task Handle_Miss_DelegatesToInnerOnce()
     {
         
         var expected = new IpInformationDto(Address, "GR", "GRC", "Greece");

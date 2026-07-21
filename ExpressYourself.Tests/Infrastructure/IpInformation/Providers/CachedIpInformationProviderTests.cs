@@ -21,7 +21,7 @@ public sealed class CachedIpInformationProviderTests
         new(_inner.Object, _cache, TimeSpan.FromMinutes(60));
 
     [Fact]
-    public async Task Handle_Miss_CallsInner_AndCachesResult()
+    public async Task Handle_Miss_CallsInnerAndCachesResult()
     {
         
         _inner.Setup(p => p.GetIpInformationAsync(Address, It.IsAny<CancellationToken>())).ReturnsAsync(Dto);
