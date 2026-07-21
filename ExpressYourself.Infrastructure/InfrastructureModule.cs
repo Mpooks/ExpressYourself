@@ -36,12 +36,17 @@ namespace ExpressYourself.Infrastructure
             {
                 CacheOptions options = context.Resolve<IOptions<CacheOptions>>().Value;
 
-                return options.Provider switch
+                if (options.UsesMemory)
                 {
-                    "Memory" => context.ResolveNamed<IIpInformationCache>(MemoryCacheName),
-                    "Redis" => CreateRedisCache(context),
-                    _ => throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.")
-                };
+                    return context.ResolveNamed<IIpInformationCache>(MemoryCacheName);
+                }
+
+                if (options.UsesRedis)
+                {
+                    return CreateRedisCache(context);
+                }
+
+                throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.");
             })
             .As<IIpInformationCache>()
             .SingleInstance();

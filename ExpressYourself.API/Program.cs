@@ -17,7 +17,7 @@ using System.Net.Http.Headers;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseServiceProviderFactory(
-    new AutofacServiceProviderFactory());
+new AutofacServiceProviderFactory());
 
 builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 {
@@ -92,8 +92,6 @@ builder.Services.AddOptions<CacheOptions>()
        .ValidateDataAnnotations()
        .ValidateOnStart();
 
-var app = builder.Build();
-
 CacheOptions? cacheOptions = builder.Configuration
         .GetSection(CacheOptions.SectionName)
         .Get<CacheOptions>();
@@ -103,7 +101,7 @@ if (cacheOptions is null)
     throw new InvalidOperationException("Cache configuration is missing.");
 }
 
-if (cacheOptions.Provider == "Redis")
+if (cacheOptions.UsesRedis)
 {
     string? redisConnectionString = builder.Configuration.GetConnectionString("Redis");
 
@@ -119,6 +117,8 @@ if (cacheOptions.Provider == "Redis")
     });
 }
 
+var app = builder.Build();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -131,3 +131,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}
