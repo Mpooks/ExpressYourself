@@ -6,5 +6,9 @@
             : base(message)
         {
         }
+        public Ip2cUnavailableException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

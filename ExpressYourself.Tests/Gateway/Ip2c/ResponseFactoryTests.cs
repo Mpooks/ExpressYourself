@@ -69,4 +69,37 @@ public class Ip2cResponseFactoryTests
         Assert.Equal("GRC", result.ThreeLetterCode);
         Assert.Equal("Greece", result.CountryName);
     }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasInvalidTwoLetterCode_ThrowsException()
+    {
+        var response = "1;;GRC;Greece";
+
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        Assert.Throws<Ip2cResponseFormatException>(action);
+    }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasInvalidThreeLetterCode_ThrowsException()
+    {
+        var response = "1;GR;GR;Greece";
+
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        Assert.Throws<Ip2cResponseFormatException>(action);
+    }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasEmptyCountryName_ThrowsException()
+    {
+        // Arrange
+        var response = "1;GR;GRC;";
+
+        // Act
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        // Assert
+        Assert.Throws<Ip2cResponseFormatException>(action);
+    }
 }
