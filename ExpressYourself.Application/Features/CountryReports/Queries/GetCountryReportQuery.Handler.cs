@@ -15,7 +15,32 @@ namespace ExpressYourself.Application.Features.CountryReports.Queries
 
         public async Task<IReadOnlyList<CountryReportDto>> Handle(GetCountryReportQuery req, CancellationToken cancellationToken)
         {
-            return await _countryReportRepository.GetAllAsync(cancellationToken);
+            IReadOnlyList<string>? normalizedCodes = NormalizeCodes(req.Codes);
+            return await _countryReportRepository.GetAllAsync(normalizedCodes, cancellationToken);
+        }
+
+        private static IReadOnlyList<string>? NormalizeCodes(IReadOnlyList<string>? codes)
+        {
+            if (codes is null || codes.Count == 0)
+            {
+                return null;
+            }
+
+
+            string[] normalizedCodes = codes.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim().ToUpperInvariant()).Distinct().ToArray();
+
+            if (normalizedCodes.Length == 0)
+            {
+                return null;
+            }
+
+            foreach (var code in normalizedCodes)
+            {
+                if (code.Length != 2 || !code.All(char.IsAsciiLetter))
+                    throw new InvalidCountryCodeException($"'{code}' is not a valid two-letter country code.");
+            }
+
+            return normalizedCodes;
         }
     }
 }

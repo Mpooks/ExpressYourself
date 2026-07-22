@@ -24,6 +24,7 @@ namespace ExpressYourself.API.ExceptionHandler
                 UnknownIpAddressException => (StatusCodes.Status404NotFound, "The IP address was not found"),
                 Ip2cResponseFormatException => (StatusCodes.Status502BadGateway, "Invalid upstream response"),
                 Ip2cUnavailableException => (StatusCodes.Status503ServiceUnavailable, "The service is unavailable"),
+                InvalidCountryCodeException => (StatusCodes.Status400BadRequest, "Invalid country code"),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occured")
             };
 
