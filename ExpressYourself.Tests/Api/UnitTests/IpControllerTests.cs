@@ -6,7 +6,7 @@ using MediatR;
 using Moq;
 
 
-namespace ExpressYourself.Tests.Api
+namespace ExpressYourself.Tests.Api.UnitTests
 {
     public class IpControllerTests
     {

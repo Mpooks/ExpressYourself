@@ -16,6 +16,11 @@ public sealed class IpController : ControllerBase
         _sender = sender;
     }
     [HttpGet("{address}")]
+    [ProducesResponseType<IpInformationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>  (StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>  (StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>  (StatusCodes.Status502BadGateway)]
+    [ProducesResponseType<ProblemDetails>  (StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<IpInformationDto>> GetAsync(string address, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetIpInformationQuery(address), cancellationToken);

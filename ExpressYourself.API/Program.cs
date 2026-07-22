@@ -27,7 +27,8 @@ builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddDbContext<ExpressYourselfDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString(ConnectionStringNames.SqlServer)));
@@ -93,16 +94,10 @@ builder.Services.AddOptions<CacheOptions>()
        .ValidateDataAnnotations()
        .ValidateOnStart();
 
-<<<<<<< HEAD
+
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
-var app = builder.Build();
-
-app.UseExceptionHandler();
-
-=======
->>>>>>> main
 CacheOptions? cacheOptions = builder.Configuration
         .GetSection(CacheOptions.SectionName)
         .Get<CacheOptions>();
@@ -132,7 +127,8 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();

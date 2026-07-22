@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
-namespace ExpressYourself.Tests.Api
+namespace ExpressYourself.Tests.Api.UnitTests
 {
 
     public class ApiExceptionHandlerTests
