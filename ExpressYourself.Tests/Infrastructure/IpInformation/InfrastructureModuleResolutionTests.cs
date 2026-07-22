@@ -1,8 +1,10 @@
 using Autofac;
+using ExpressYourself.Application.Caching;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Infrastructure;
+using ExpressYourself.Infrastructure.Caching;
 using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.IpInformation.Providers;
 using Microsoft.Extensions.Caching.Memory;
@@ -16,7 +18,7 @@ namespace ExpressYourself.Tests.Infrastructure.IpInformation;
 public sealed class InfrastructureModuleResolutionTests
 {
     [Fact]
-    public void Build_ResolvesProviderChain_WithTtlFromOptions()
+    public void Build_ResolvesProviderChainAndMemoryCache_WithTtlFromOptions()
     {
         var builder = new ContainerBuilder();
         builder.RegisterModule(new InfrastructureModule());
@@ -35,7 +37,9 @@ public sealed class InfrastructureModuleResolutionTests
         using var container = builder.Build();
 
         var provider = container.Resolve<IIpInformationProvider>();
+        var cache = container.Resolve<IIpInformationCache>();
 
         Assert.IsType<CachedIpInformationProvider>(provider);
+        Assert.IsType<MemoryIpInformationCache>(cache);
     }
 }

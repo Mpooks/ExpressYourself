@@ -17,7 +17,7 @@ using System.Net.Http.Headers;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseServiceProviderFactory(
-    new AutofacServiceProviderFactory());
+new AutofacServiceProviderFactory());
 
 builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 {
@@ -37,8 +37,8 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-builder.Services.AddSingleton<IValidateOptions<Ip2cOptions>,Ip2cOptionsValidator>();
-Ip2cOptions? ip2cOptions =builder.Configuration.GetSection(Ip2cOptions.SectionName).Get<Ip2cOptions>();
+builder.Services.AddSingleton<IValidateOptions<Ip2cOptions>, Ip2cOptionsValidator>();
+Ip2cOptions? ip2cOptions = builder.Configuration.GetSection(Ip2cOptions.SectionName).Get<Ip2cOptions>();
 if (ip2cOptions is null)
 {
     throw new InvalidOperationException("Ip2c configuration is missing");
@@ -63,32 +63,59 @@ IHttpClientBuilder ip2cHttpClientBuilder =
         });
 
 
-ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline",pipelineBuilder =>
-    {
-        pipelineBuilder.AddRetry(
-            new HttpRetryStrategyOptions
-            {
-                MaxRetryAttempts = ip2cOptions.RetryCount,
-                Delay = TimeSpan.FromMilliseconds(500),
-                BackoffType = DelayBackoffType.Exponential,
-                UseJitter = true
-            });
+ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBuilder =>
+{
+    pipelineBuilder.AddRetry(
+        new HttpRetryStrategyOptions
+        {
+            MaxRetryAttempts = ip2cOptions.RetryCount,
+            Delay = TimeSpan.FromMilliseconds(500),
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true
+        });
 
-        pipelineBuilder.AddCircuitBreaker(
-            new HttpCircuitBreakerStrategyOptions
-            {
-                FailureRatio = 0.9,
-                MinimumThroughput =ip2cOptions.CircuitBreakerFailureCount,
-                SamplingDuration =TimeSpan.FromSeconds(30),
-                BreakDuration =TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
-            });
+    pipelineBuilder.AddCircuitBreaker(
+        new HttpCircuitBreakerStrategyOptions
+        {
+            FailureRatio = 0.9,
+            MinimumThroughput = ip2cOptions.CircuitBreakerFailureCount,
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
+        });
 
-        pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
-    });
+    pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
+});
+
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions<CacheOptions>()
        .Bind(builder.Configuration.GetSection(CacheOptions.SectionName))
-       .ValidateDataAnnotations();
+       .ValidateDataAnnotations()
+       .ValidateOnStart();
+
+CacheOptions? cacheOptions = builder.Configuration
+        .GetSection(CacheOptions.SectionName)
+        .Get<CacheOptions>();
+
+if (cacheOptions is null)
+{
+    throw new InvalidOperationException("Cache configuration is missing.");
+}
+
+if (cacheOptions.UsesRedis)
+{
+    string? redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+
+    if (string.IsNullOrWhiteSpace(redisConnectionString))
+    {
+        throw new InvalidOperationException("Redis connection string is required when Redis cache is enabled.");
+    }
+
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "ExpressYourself:";
+    });
+}
 
 var app = builder.Build();
 
@@ -104,3 +131,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}

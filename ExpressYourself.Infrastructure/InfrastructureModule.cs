@@ -1,40 +1,84 @@
 ﻿using Autofac;
 using Autofac.Core;
+using ExpressYourself.Application.Caching;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Strategies;
+using ExpressYourself.Infrastructure.Caching;
 using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.IpInformation.Providers;
 using ExpressYourself.Infrastructure.Persistence.Context;
 using ExpressYourself.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace ExpressYourself.Infrastructure
 {
     public class InfrastructureModule : Module
     {
+        private const string MemoryCacheName = "memory";
+        private const string RedisCacheName = "redis";
+
         protected override void Load(ContainerBuilder builder)
         {
             builder.RegisterType<UnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
             builder.RegisterType<CountryRepository>().As<ICountryRepository>().InstancePerLifetimeScope();
             builder.RegisterType<IpAddressRepository>().As<IIpAddressRepository>().InstancePerLifetimeScope();
 
-            builder.RegisterType<Ip2cIpInformationProvider>().Named<IIpInformationProvider>("ip2c").InstancePerLifetimeScope();
+            builder.RegisterType<MemoryIpInformationCache>()
+                   .Named<IIpInformationCache>(MemoryCacheName)
+                   .SingleInstance();
 
-            builder.RegisterType<DatabaseIpInformationProvider>().Named<IIpInformationProvider>("database")
+            builder.RegisterType<RedisIpInformationCache>()
+                   .Named<IIpInformationCache>(RedisCacheName)
+                   .SingleInstance();
+
+            builder.Register(context =>
+            {
+                CacheOptions options = context.Resolve<IOptions<CacheOptions>>().Value;
+
+                if (options.UsesMemory)
+                {
+                    return context.ResolveNamed<IIpInformationCache>(MemoryCacheName);
+                }
+
+                if (options.UsesRedis)
+                {
+                    return CreateRedisCache(context);
+                }
+
+                throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.");
+            })
+            .As<IIpInformationCache>()
+            .SingleInstance();
+
+            builder.RegisterType<Ip2cIpInformationProvider>()
+                   .Named<IIpInformationProvider>("ip2c")
+                   .InstancePerLifetimeScope();
+
+            builder.RegisterType<DatabaseIpInformationProvider>()
+                   .Named<IIpInformationProvider>("database")
                    .WithParameter(ResolvedParameter.ForNamed<IIpInformationProvider>("ip2c"))
                    .InstancePerLifetimeScope();
 
-            builder.Register(c =>
+            builder.Register(context =>
             {
-                var inner = c.ResolveNamed<IIpInformationProvider>("database");
-                var cache = c.Resolve<IMemoryCache>();
-                var options = c.Resolve<IOptions<CacheOptions>>().Value;
-                return new CachedIpInformationProvider(inner, cache, TimeSpan.FromMinutes(options.DefaultTtlMinutes));
+                var inner = context.ResolveNamed<IIpInformationProvider>("database");
+
+                var cache = context.Resolve<IIpInformationCache>();
+
+                return new CachedIpInformationProvider(inner, cache);
             })
             .As<IIpInformationProvider>()
             .InstancePerLifetimeScope();
         }
+
+        private static IIpInformationCache CreateRedisCache(
+            IComponentContext context)
+        {
+            return new FallbackIpInformationCache(
+                context.ResolveNamed<IIpInformationCache>(RedisCacheName),
+                context.ResolveNamed<IIpInformationCache>(MemoryCacheName),
+                context.Resolve<ILogger<FallbackIpInformationCache>>());
+        }
     }
 }
-
