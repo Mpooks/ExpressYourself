@@ -108,6 +108,26 @@ public sealed class FallbackIpInformationCacheTests
     }
 
     [Fact]
+    public async Task GetAsync_RedisServerFails_ReturnsMemoryEntry()
+    {
+        _redisCache
+            .Setup(cache => cache.GetAsync(Address, CancellationToken.None))
+            .ThrowsAsync(new RedisServerException("Redis server error."));
+
+        _memoryCache
+            .Setup(cache => cache.GetAsync(Address,CancellationToken.None))
+            .ReturnsAsync(CacheEntry);
+
+        var cache = CreateCache();
+
+        IpInformationCacheEntry? result = await cache.GetAsync(Address, CancellationToken.None);
+
+        Assert.Equal(CacheEntry, result);
+
+        _memoryCache.Verify(memory => memory.GetAsync(Address, CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
     public async Task GetAsync_NonRedisFailure_DoesNotUseFallback()
     {
         _redisCache

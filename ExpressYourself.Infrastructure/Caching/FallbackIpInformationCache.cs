@@ -72,7 +72,7 @@ internal sealed class FallbackIpInformationCache : IIpInformationCache
 
     private static bool IsRedisUnavailable(Exception exception)
     {
-        return exception is RedisConnectionException or RedisTimeoutException;
+        return exception is RedisException or RedisTimeoutException;
     }
 
     private void LogFallback(Exception exception, string operation)

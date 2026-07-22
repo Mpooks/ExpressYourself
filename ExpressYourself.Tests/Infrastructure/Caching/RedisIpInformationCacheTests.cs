@@ -106,6 +106,28 @@ public sealed class RedisIpInformationCacheTests
     }
 
     [Fact]
+    public async Task SetAsync_UnknownEntry_UsesConfiguredNegativeTtl()
+    {
+        DistributedCacheEntryOptions? storedOptions = null;
+
+        _distributedCache
+            .Setup(cache => cache.SetAsync(CacheKey,It.IsAny<byte[]>(), It.IsAny<DistributedCacheEntryOptions>(), CancellationToken.None))
+            .Callback<string, byte[], DistributedCacheEntryOptions, CancellationToken>(
+                (key, value, options, cancellationToken) =>
+                {
+                    storedOptions = options;
+                })
+            .Returns(Task.CompletedTask);
+
+        var cache = CreateCache(ttlMinutes: 15, negativeTtlSeconds: 30);
+
+        await cache.SetAsync(Address, IpInformationCacheEntry.Unknown, CancellationToken.None);
+
+        Assert.NotNull(storedOptions);
+        Assert.Equal(TimeSpan.FromSeconds(30), storedOptions.AbsoluteExpirationRelativeToNow);
+    }
+
+    [Fact]
     public async Task RemoveAsync_EquivalentAddress_UsesNormalizedKey()
     {
         _distributedCache
@@ -140,9 +162,14 @@ public sealed class RedisIpInformationCacheTests
         _distributedCache.VerifyNoOtherCalls();
     }
 
-    private RedisIpInformationCache CreateCache(
-        int ttlMinutes = 60)
+    private RedisIpInformationCache CreateCache(int ttlMinutes = 60, int negativeTtlSeconds = 60)
     {
-        return new RedisIpInformationCache(_distributedCache.Object,Options.Create(new CacheOptions{DefaultTtlMinutes = ttlMinutes}), NullLogger<RedisIpInformationCache>.Instance);
+        var options = new CacheOptions
+        {
+            DefaultTtlMinutes = ttlMinutes,
+            NegativeTtlSeconds = negativeTtlSeconds
+        };
+
+        return new RedisIpInformationCache(_distributedCache.Object, Options.Create(options), NullLogger<RedisIpInformationCache>.Instance);
     }
 }
