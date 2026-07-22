@@ -1,4 +1,4 @@
-﻿namespace ExpressYourself.Gateway.Ip2c
+﻿namespace ExpressYourself.Application.Interfaces
 {
     public enum Ip2cLookupStatus
     {

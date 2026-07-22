@@ -28,7 +28,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ExpressYourself.Application\ExpressYourself.Application.csproj" />
     <ProjectReference Include="..\ExpressYourself.Domain\ExpressYourself.Domain.csproj" />
-    <ProjectReference Include="..\ExpressYourself.Gateway\ExpressYourself.Gateway.csproj" />
   </ItemGroup>
 
   <ItemGroup>

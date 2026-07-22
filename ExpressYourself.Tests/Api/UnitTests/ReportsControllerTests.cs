@@ -5,7 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
-namespace ExpressYourself.Tests.Api;
+namespace ExpressYourself.Tests.Api.UnitTests;
 
 public class ReportsControllerTests
 {

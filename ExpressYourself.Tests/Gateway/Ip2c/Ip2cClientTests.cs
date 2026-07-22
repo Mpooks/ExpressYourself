@@ -3,7 +3,7 @@ using ExpressYourself.Gateway.Ip2c;
 using Moq;
 using Moq.Protected;
 using System.Net;
-using Xunit;
+using ExpressYourself.Application.Interfaces;
 
 namespace ExpressYourself.Tests.Gateway.Ip2c;
 

@@ -31,7 +31,7 @@ public sealed class CountryReportRepository : ICountryReportRepository
         ORDER BY c.CountryName
         """;
 
-    public async Task<IReadOnlyList<CountryReportDto>?> GetAllAsync(IReadOnlyList<string>? codes, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<CountryReportDto>> GetAllAsync(IReadOnlyList<string>? codes, CancellationToken cancellationToken)
     {
         string filter = (codes is { Count: > 0 }) ? " WHERE c.TwoLetterCode IN @Codes " : " ";
         string sql = PartialSql + filter + AdditionalSql;

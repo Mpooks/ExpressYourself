@@ -1,12 +1,11 @@
 ﻿using ExpressYourself.Application.Caching;
-using ExpressYourself.Application.Errors;
 using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Domain.Entities;
-using ExpressYourself.Gateway.Ip2c;
+
 
 namespace ExpressYourself.Infrastructure.IpInformation.Providers
 {

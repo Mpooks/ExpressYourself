@@ -1,6 +1,4 @@
-﻿using ExpressYourself.Gateway.Ip2c;
-
-namespace ExpressYourself.Application.Interfaces
+﻿namespace ExpressYourself.Application.Interfaces
 {
     public interface IIp2cClient
     {

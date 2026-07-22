@@ -1,5 +1,4 @@
 ﻿using ExpressYourself.API.ExceptionHandler;
-using ExpressYourself.Application.Errors;
 using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Gateway.Exceptions;
 using Microsoft.AspNetCore.Http;

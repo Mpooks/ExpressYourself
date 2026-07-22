@@ -1,4 +1,4 @@
-namespace ExpressYourself.Application.Errors
+namespace ExpressYourself.Application.Exceptions
 {
     public class UnknownIpAddressException : Exception
     {

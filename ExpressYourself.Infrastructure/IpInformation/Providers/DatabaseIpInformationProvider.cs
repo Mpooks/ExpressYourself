@@ -1,9 +1,10 @@
-﻿using ExpressYourself.Application.Errors;
+﻿using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Domain.Enums;
 using Microsoft.Extensions.Logging;
+
 
 namespace ExpressYourself.Infrastructure.IpInformation.Providers
 {

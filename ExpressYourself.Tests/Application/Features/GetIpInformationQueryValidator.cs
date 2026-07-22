@@ -1,5 +1,4 @@
-﻿using ExpressYourself.Application.Errors;
-using ExpressYourself.Application.Exceptions;
+﻿using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Queries;
 
 namespace ExpressYourself.Tests.Application.Features.IpInformation;

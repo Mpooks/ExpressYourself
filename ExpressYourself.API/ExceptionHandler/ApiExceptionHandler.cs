@@ -1,5 +1,4 @@
-﻿using ExpressYourself.Application.Errors;
-using ExpressYourself.Application.Exceptions;
+﻿using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Gateway.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 
