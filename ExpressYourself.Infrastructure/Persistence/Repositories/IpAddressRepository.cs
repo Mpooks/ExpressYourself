@@ -49,4 +49,9 @@ public sealed class IpAddressRepository : IIpAddressRepository
             .Take(batchSize)
             .ToListAsync(cancellationToken);
     }
+
+    public void Update(IpAddress ipAddress)
+    {
+        _context.IpAddresses.Update(ipAddress);
+    }
 }

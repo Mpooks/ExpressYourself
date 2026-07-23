@@ -11,5 +11,7 @@ namespace ExpressYourself.Application.Infrastructure.Persistence
         Task<IReadOnlyList<IpAddress>> GetBatchAsync(string? afterAddress, int batchSize, CancellationToken cancellationToken);
 
         void Add(IpAddress ipAddress);
+
+        void Update(IpAddress ipAddress);
     }
 }

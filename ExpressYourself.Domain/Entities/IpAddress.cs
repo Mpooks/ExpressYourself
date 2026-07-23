@@ -15,6 +15,8 @@ public sealed class IpAddress
 
     public DateTimeOffset? LastUpdatedAtUtc { get; private set; }
 
+    public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
+
     private IpAddress()
     {
         Address = string.Empty;

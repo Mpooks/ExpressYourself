@@ -38,7 +38,7 @@ public sealed class ExpressYourselfDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(i => i.CountryTwoLetterCode)
                   .OnDelete(DeleteBehavior.SetNull);
-            entity.Property<byte[]>("RowVersion").IsRowVersion();
+            entity.Property(i => i.RowVersion).IsRowVersion();
         });
     }
 }

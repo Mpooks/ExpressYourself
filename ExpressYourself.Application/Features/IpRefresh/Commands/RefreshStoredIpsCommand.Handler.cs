@@ -48,8 +48,15 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             int unchanged = 0;
             int failed = 0;
 
-            DateTimeOffset now = _clock.GetUtcNow();
             string? afterAddress = null;
+
+            var countryCache = new Dictionary<string, Country>(StringComparer.OrdinalIgnoreCase);
+
+            void ResetTracking()
+            {
+                _unitOfWork.ClearTracked();
+                countryCache.Clear();
+            }
 
             while (true)
             {
@@ -70,13 +77,13 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                     if (lookup.Error is not null)
                     {
                         failed++;
-                        _logger.LogWarning(lookup.Error, "Failed to look up IP {Address}.", lookup.Address);
+                        _logger.LogWarning(lookup.Error, "Failed to look up IP {Address}.", lookup.Ip.Address);
                         continue;
                     }
 
                     try
                     {
-                        RefreshOutcome outcome = await ApplyAsync(lookup.Address, lookup.Result!, now, cancellationToken);
+                        RefreshOutcome outcome = await ApplyAsync(lookup.Ip, lookup.Result!, countryCache, cancellationToken);
 
                         if (outcome == RefreshOutcome.Changed)
                         {
@@ -98,11 +105,13 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                     catch (Exception exception)
                     {
                         failed++;
-                        _logger.LogWarning(exception, "Failed to persist IP {Address}.", lookup.Address);
+                        _logger.LogWarning(exception, "Failed to persist IP {Address}.", lookup.Ip.Address);
+
+                        ResetTracking();
                     }
                 }
 
-                _unitOfWork.ClearTracked();
+                ResetTracking();
 
                 afterAddress = batch[^1].Address;
 
@@ -127,14 +136,12 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
             await Parallel.ForEachAsync(Enumerable.Range(0, batch.Count), options, async (index, token) =>
             {
-                string address = batch[index].Address;
+                IpAddress ip = batch[index];
 
                 try
                 {
-                    Ip2cLookupResult result =
-                        await _ip2cClient.GetIpInformationAsync(address, token);
-
-                    lookups[index] = new BatchLookup(address, result, null);
+                    Ip2cLookupResult result = await _ip2cClient.GetIpInformationAsync(ip.Address, token);
+                    lookups[index] = new BatchLookup(ip, result, null);
                 }
                 catch (OperationCanceledException)
                 {
@@ -142,21 +149,16 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                 }
                 catch (Exception exception)
                 {
-                    lookups[index] = new BatchLookup(address, null, exception);
+                    lookups[index] = new BatchLookup(ip, null, exception);
                 }
             });
 
             return lookups;
         }
 
-        private async Task<RefreshOutcome> ApplyAsync(string address, Ip2cLookupResult lookup, DateTimeOffset now, CancellationToken cancellationToken)
+        private async Task<RefreshOutcome> ApplyAsync(IpAddress ip, Ip2cLookupResult lookup, Dictionary<string, Country> countryCache, CancellationToken cancellationToken)
         {
-            IpAddress? ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
-
-            if (ip is null)
-            {
-                return RefreshOutcome.Failed;
-            }
+            DateTimeOffset now = _clock.GetUtcNow();
 
             bool ipChanged;
             bool countryChanged = false;
@@ -166,7 +168,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             {
                 case Ip2cLookupStatus.Success:
                     ipChanged = ip.SetCountry(lookup.TwoLetterCode!, now);
-                    countryChanged = await EnsureCountryAsync(lookup, cancellationToken);
+                    countryChanged = await EnsureCountryAsync(lookup, countryCache, cancellationToken);
                     countryCode = lookup.TwoLetterCode!;
                     break;
 
@@ -178,23 +180,45 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                     return RefreshOutcome.Failed;
             }
 
+            _ipAddressRepository.Update(ip);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await InvalidateCacheAsync(address, ipChanged, countryChanged, countryCode, cancellationToken);
+            try
+            {
+                await InvalidateCacheAsync(ip.Address, ipChanged, countryChanged, countryCode, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(exception, "Refreshed IP {Address} but failed to invalidate its cache.", ip.Address);
+            }
 
             return ipChanged ? RefreshOutcome.Changed : RefreshOutcome.Unchanged;
         }
 
-        private async Task<bool> EnsureCountryAsync(Ip2cLookupResult lookup, CancellationToken cancellationToken)
+        private async Task<bool> EnsureCountryAsync(Ip2cLookupResult lookup, Dictionary<string, Country> countryCache, CancellationToken cancellationToken)
         {
-            Country? country = await _countryRepository.GetByTwoLetterCodeAsync(lookup.TwoLetterCode!, cancellationToken);
+            string twoLetterCode = lookup.TwoLetterCode!;
+
+            if (countryCache.TryGetValue(twoLetterCode, out Country? cached))
+            {
+                return cached.UpdateInformation(lookup.ThreeLetterCode!, lookup.CountryName!);
+            }
+
+            Country? country = await _countryRepository.GetByTwoLetterCodeAsync(twoLetterCode, cancellationToken);
 
             if (country is null)
             {
-                _countryRepository.Add(new Country(lookup.TwoLetterCode!, lookup.ThreeLetterCode!, lookup.CountryName!));
+                country = new Country(lookup.TwoLetterCode!, lookup.ThreeLetterCode!, lookup.CountryName!);
+                _countryRepository.Add(country);
+                countryCache[twoLetterCode] = country;
                 return false;
             }
 
+            countryCache[twoLetterCode] = country;
             return country.UpdateInformation(lookup.ThreeLetterCode!, lookup.CountryName!);
         }
 
@@ -227,6 +251,6 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             Failed
         }
 
-        private sealed record BatchLookup(string Address, Ip2cLookupResult? Result, Exception? Error);
+        private sealed record BatchLookup(IpAddress Ip, Ip2cLookupResult? Result, Exception? Error);
     }
 }

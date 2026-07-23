@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Ip2c\**" />
     <EmbeddedResource Remove="Ip2c\**" />
     <None Remove="Ip2c\**" />
   </ItemGroup>

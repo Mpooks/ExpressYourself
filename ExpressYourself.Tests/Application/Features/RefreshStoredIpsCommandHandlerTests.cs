@@ -29,12 +29,6 @@ public sealed class RefreshStoredIpsCommandHandlerTests
               .ReturnsAsync(stored.ToList())
               .ReturnsAsync(new List<IpAddress>());
 
-        foreach (var ip in stored)
-        {
-            ipRepo.Setup(r => r.GetByAddressAsync(ip.Address, It.IsAny<CancellationToken>()))
-                  .ReturnsAsync(ip);
-        }
-
         uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var handler = new RefreshStoredIpsCommandHandler(
@@ -154,5 +148,51 @@ public sealed class RefreshStoredIpsCommandHandlerTests
         Assert.Equal(1, result.Changed);
         Assert.Equal(1, result.Unchanged);
         Assert.Equal(1, result.Failed);
+    }
+
+    [Fact]
+    public async Task Handle_CacheInvalidationThrows_StillCountsChangedNotFailed()
+    {
+        var stored = StoredIp("1.1.1.1", "US");
+        var (handler, client, _, countryRepo, _, cache) = Build(stored);
+
+        client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+        countryRepo.Setup(r => r.GetByTwoLetterCodeAsync("GR", It.IsAny<CancellationToken>()))
+                   .ReturnsAsync(new Country("GR", "GRC", "Greece"));
+        cache.Setup(c => c.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+             .ThrowsAsync(new InvalidOperationException("cache down"));
+
+        var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
+
+        Assert.Equal(1, result.Changed);
+        Assert.Equal(0, result.Failed);
+    }
+
+    [Fact]
+    public async Task Handle_PersistFailsForOneIp_IsolatesFailureAndResetsTracker()
+    {
+        var failing = StoredIp("1.1.1.1", "US");
+        var succeeding = StoredIp("2.2.2.2", "US");
+        var (handler, client, _, countryRepo, uow, _) = Build(failing, succeeding);
+
+        client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+        client.Setup(c => c.GetIpInformationAsync("2.2.2.2", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+        countryRepo.Setup(r => r.GetByTwoLetterCodeAsync("GR", It.IsAny<CancellationToken>()))
+                   .ReturnsAsync(new Country("GR", "GRC", "Greece"));
+
+        uow.SetupSequence(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+           .ThrowsAsync(new InvalidOperationException("save failed"))
+           .ReturnsAsync(1);
+
+        var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
+
+        Assert.Equal(2, result.Scanned);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(1, result.Changed);
+
+        uow.Verify(u => u.ClearTracked(), Times.Exactly(2));
     }
 }
