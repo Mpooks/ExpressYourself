@@ -10,6 +10,8 @@ using ExpressYourself.Infrastructure.Persistence.Context;
 using ExpressYourself.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using ExpressYourself.Infrastructure.Persistence;
+using ExpressYourself.Infrastructure.Persistence.Abstraction;
 
 namespace ExpressYourself.Infrastructure
 {
@@ -23,14 +25,8 @@ namespace ExpressYourself.Infrastructure
             builder.RegisterType<UnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
             builder.RegisterType<CountryRepository>().As<ICountryRepository>().InstancePerLifetimeScope();
             builder.RegisterType<IpAddressRepository>().As<IIpAddressRepository>().InstancePerLifetimeScope();
-
-            builder.RegisterType<MemoryIpInformationCache>()
-                   .Named<IIpInformationCache>(MemoryCacheName)
-                   .SingleInstance();
-
-            builder.RegisterType<RedisIpInformationCache>()
-                   .Named<IIpInformationCache>(RedisCacheName)
-                   .SingleInstance();
+            builder.RegisterType<MemoryIpInformationCache>().Named<IIpInformationCache>(MemoryCacheName).SingleInstance();
+            builder.RegisterType<RedisIpInformationCache>().Named<IIpInformationCache>(RedisCacheName).SingleInstance();
 
             builder.Register(context =>
             {
@@ -70,6 +66,9 @@ namespace ExpressYourself.Infrastructure
             })
             .As<IIpInformationProvider>()
             .InstancePerLifetimeScope();
+            
+            builder.RegisterType<SqlConnectionFactory>().As<IDbConnectionFactory>().SingleInstance();
+            builder.RegisterType<CountryReportRepository>().As<ICountryReportRepository>().InstancePerLifetimeScope();
         }
 
         private static IIpInformationCache CreateRedisCache(

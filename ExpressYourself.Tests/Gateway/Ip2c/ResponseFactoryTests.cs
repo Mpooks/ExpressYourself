@@ -3,6 +3,8 @@ using ExpressYourself.Gateway.Ip2c;
 using ExpressYourself.Gateway.Exceptions;
 using ExpressYourself.Application.Interfaces;
 
+namespace ExpressYourself.Tests.Gateway.Ip2c;
+
 public class Ip2cResponseFactoryTests
 {
     [Fact]
@@ -66,5 +68,35 @@ public class Ip2cResponseFactoryTests
         Assert.Equal("GR", result.TwoLetterCode);
         Assert.Equal("GRC", result.ThreeLetterCode);
         Assert.Equal("Greece", result.CountryName);
+    }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasInvalidTwoLetterCode_ThrowsException()
+    {
+        var response = "1;;GRC;Greece";
+
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        Assert.Throws<Ip2cResponseFormatException>(action);
+    }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasInvalidThreeLetterCode_ThrowsException()
+    {
+        var response = "1;GR;GR;Greece";
+
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        Assert.Throws<Ip2cResponseFormatException>(action);
+    }
+
+    [Fact]
+    public void Create_WhenSuccessResponseHasEmptyCountryName_ThrowsException()
+    {
+        var response = "1;GR;GRC;";
+
+        Action action = () => Ip2cResponseFactory.Create(response);
+
+        Assert.Throws<Ip2cResponseFormatException>(action);
     }
 }

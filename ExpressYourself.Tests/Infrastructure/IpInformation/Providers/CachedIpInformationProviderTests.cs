@@ -1,5 +1,5 @@
 ﻿using ExpressYourself.Application.Caching;
-using ExpressYourself.Application.Errors;
+using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Infrastructure.IpInformation.Providers;

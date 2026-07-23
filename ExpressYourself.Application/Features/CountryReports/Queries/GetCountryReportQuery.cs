@@ -3,5 +3,5 @@ using MediatR;
 
 namespace ExpressYourself.Application.Features.CountryReports.Queries
 {
-    public record GetCountryReportQuery() : IRequest<IReadOnlyList<CountryReportDto>>;
+    public record GetCountryReportQuery(IReadOnlyList<string>? Codes=null) : IRequest<IReadOnlyList<CountryReportDto>>;
 }

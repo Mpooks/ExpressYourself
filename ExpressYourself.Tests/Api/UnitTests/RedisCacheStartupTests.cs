@@ -3,7 +3,7 @@ using ExpressYourself.Infrastructure.Caching;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ExpressYourself.Tests.API;
+namespace ExpressYourself.Tests.Api.UnitTests;
 
 [CollectionDefinition("Redis startup", DisableParallelization = true)]
 public sealed class RedisStartupCollection

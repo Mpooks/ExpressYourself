@@ -1,4 +1,4 @@
 ﻿namespace ExpressYourself.Application.Features.CountryReports.Contracts
 {
-    public record CountryReportDto(string TwoLetterCountryCode, string ThreeLetterCountryCode, string CountryName, int IpAddressCount);
+    public record CountryReportDto(string CountryName, int AddressesCount, DateTimeOffset LastAddressUpdated);
 }

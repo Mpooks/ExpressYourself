@@ -1,5 +1,4 @@
 ﻿using ExpressYourself.Application.Behaviors;
-using ExpressYourself.Application.Errors;
 using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Interfaces;
 using MediatR;

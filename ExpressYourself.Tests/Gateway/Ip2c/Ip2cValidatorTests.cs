@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using ExpressYourself.Gateway.Ip2c;
 
+namespace ExpressYourself.Tests.Gateway.Ip2c;
 public class Ip2cOptionsValidatorTests
 {
     private readonly Ip2cOptionsValidator _validator = new();

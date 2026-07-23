@@ -1,5 +1,6 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using ExpressYourself.API.ExceptionHandler;
 using ExpressYourself.Application;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Gateway.Ip2c;
@@ -26,7 +27,8 @@ builder.Host.ConfigureContainer<ContainerBuilder>(container =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddDbContext<ExpressYourselfDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString(ConnectionStringNames.SqlServer)));
@@ -92,6 +94,10 @@ builder.Services.AddOptions<CacheOptions>()
        .ValidateDataAnnotations()
        .ValidateOnStart();
 
+
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+
 CacheOptions? cacheOptions = builder.Configuration
         .GetSection(CacheOptions.SectionName)
         .Get<CacheOptions>();
@@ -118,10 +124,11 @@ if (cacheOptions.UsesRedis)
 }
 
 var app = builder.Build();
-
+app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
