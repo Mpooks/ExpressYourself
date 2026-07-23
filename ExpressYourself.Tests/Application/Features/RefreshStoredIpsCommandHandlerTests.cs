@@ -1,4 +1,5 @@
-﻿using ExpressYourself.Application.Features.IpRefresh.Commands;
+﻿using ExpressYourself.Application.Caching;
+using ExpressYourself.Application.Features.IpRefresh.Commands;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Entities;
@@ -13,12 +14,14 @@ public sealed class RefreshStoredIpsCommandHandlerTests
                     Mock<IIp2cClient> client,
                     Mock<IIpAddressRepository> ipRepo,
                     Mock<ICountryRepository> countryRepo,
-                    Mock<IUnitOfWork> uow) Build(IpAddress stored)
+                    Mock<IUnitOfWork> uow,
+                    Mock<IIpInformationCache> cache) Build(IpAddress stored)
     {
         var client = new Mock<IIp2cClient>();
         var ipRepo = new Mock<IIpAddressRepository>();
         var countryRepo = new Mock<ICountryRepository>();
         var uow = new Mock<IUnitOfWork>();
+        var cache = new Mock<IIpInformationCache>();
 
         ipRepo.SetupSequence(r => r.GetBatchAsync(It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(new List<IpAddress> { stored })
@@ -35,38 +38,60 @@ public sealed class RefreshStoredIpsCommandHandlerTests
             ipRepo.Object,
             countryRepo.Object,
             uow.Object,
+            cache.Object,
             TimeProvider.System,
             NullLogger<RefreshStoredIpsCommandHandler>.Instance);
 
-        return (handler, client, ipRepo, countryRepo, uow);
+        return (handler, client, ipRepo, countryRepo, uow, cache);
     }
 
     [Fact]
-    public async Task Handle_CountryChanged_CountsChanged()
+    public async Task Handle_IpCountryChanged_CountsChangedAndInvalidatesThatIpOnly()
     {
         var stored = new IpAddress("1.1.1.1");
-        stored.SetCountry("US", DateTimeOffset.UtcNow.AddDays(-1));   // currently US
-        var (handler, client, _, countryRepo, _) = Build(stored);
+        stored.SetCountry("US", DateTimeOffset.UtcNow.AddDays(-1));
+        var (handler, client, ipRepo, countryRepo, _, cache) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece")); // now GR
+              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
         countryRepo.Setup(r => r.GetByTwoLetterCodeAsync("GR", It.IsAny<CancellationToken>()))
                    .ReturnsAsync(new Country("GR", "GRC", "Greece"));
 
         var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
 
-        Assert.Equal(1, result.Scanned);
         Assert.Equal(1, result.Changed);
-        Assert.Equal(0, result.Unchanged);
-        Assert.Equal(0, result.Failed);
+        cache.Verify(c => c.RemoveAsync("1.1.1.1", It.IsAny<CancellationToken>()), Times.Once);
+        ipRepo.Verify(r => r.GetAddressesByCountryCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_SameCountry_CountsUnchanged()
+    public async Task Handle_CountryMetadataChanged_InvalidatesAllAddressesForThatCountry()
+    {
+        var stored = new IpAddress("1.1.1.1");
+        stored.SetCountry("GR", DateTimeOffset.UtcNow.AddDays(-1));   // already GR
+        var (handler, client, ipRepo, countryRepo, _, cache) = Build(stored);
+
+        // Same country (GR) but a different name -> country metadata changed, IP itself unchanged.
+        client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Hellas"));
+        countryRepo.Setup(r => r.GetByTwoLetterCodeAsync("GR", It.IsAny<CancellationToken>()))
+                   .ReturnsAsync(new Country("GR", "GRC", "Greece"));
+        ipRepo.Setup(r => r.GetAddressesByCountryCodeAsync("GR", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new List<string> { "1.1.1.1", "9.9.9.9" });
+
+        var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
+
+        Assert.Equal(1, result.Unchanged);
+        cache.Verify(c => c.RemoveAsync("1.1.1.1", It.IsAny<CancellationToken>()), Times.Once);
+        cache.Verify(c => c.RemoveAsync("9.9.9.9", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_SameCountry_CountsUnchangedAndDoesNotInvalidate()
     {
         var stored = new IpAddress("1.1.1.1");
         stored.SetCountry("US", DateTimeOffset.UtcNow.AddDays(-1));
-        var (handler, client, _, countryRepo, _) = Build(stored);
+        var (handler, client, _, countryRepo, _, cache) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "US", "USA", "United States"));
@@ -75,17 +100,15 @@ public sealed class RefreshStoredIpsCommandHandlerTests
 
         var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
 
-        Assert.Equal(1, result.Scanned);
-        Assert.Equal(0, result.Changed);
         Assert.Equal(1, result.Unchanged);
-        Assert.Equal(0, result.Failed);
+        cache.Verify(c => c.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_LookupThrows_CountsFailed_AndDoesNotCrash()
+    public async Task Handle_LookupThrows_CountsFailed()
     {
         var stored = new IpAddress("1.1.1.1");
-        var (handler, client, _, _, _) = Build(stored);
+        var (handler, client, _, _, _, cache) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ThrowsAsync(new HttpRequestException("ip2c down"));
@@ -93,8 +116,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
         var result = await handler.Handle(new RefreshStoredIpsCommand(), CancellationToken.None);
 
         Assert.Equal(1, result.Scanned);
-        Assert.Equal(0, result.Changed);
-        Assert.Equal(0, result.Unchanged);
         Assert.Equal(1, result.Failed);
+        cache.Verify(c => c.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

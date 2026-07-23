@@ -1,4 +1,5 @@
-﻿using ExpressYourself.Application.Features.IpRefresh.Contracts;
+﻿using ExpressYourself.Application.Caching;
+using ExpressYourself.Application.Features.IpRefresh.Contracts;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Entities;
@@ -18,6 +19,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
         private readonly IIpAddressRepository _ipAddressRepository;
         private readonly ICountryRepository _countryRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IIpInformationCache _cache;
         private readonly TimeProvider _clock;
         private readonly ILogger<RefreshStoredIpsCommandHandler> _logger;
 
@@ -26,6 +28,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             IIpAddressRepository ipAddressRepository,
             ICountryRepository countryRepository,
             IUnitOfWork unitOfWork,
+            IIpInformationCache cache,
             TimeProvider clock,
             ILogger<RefreshStoredIpsCommandHandler> logger)
         {
@@ -33,6 +36,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             _ipAddressRepository = ipAddressRepository;
             _countryRepository = countryRepository;
             _unitOfWork = unitOfWork;
+            _cache = cache;
             _clock = clock;
             _logger = logger;
         }
@@ -51,7 +55,8 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
             while (true)
             {
-                IReadOnlyList<IpAddress> batch = await _ipAddressRepository.GetBatchAsync(afterAddress, BatchSize, cancellationToken);
+                IReadOnlyList<IpAddress> batch =
+                    await _ipAddressRepository.GetBatchAsync(afterAddress, BatchSize, cancellationToken);
 
                 if (batch.Count == 0)
                 {
@@ -108,26 +113,31 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             DateTimeOffset now,
             CancellationToken cancellationToken)
         {
-            Ip2cLookupResult lookup = await _ip2cClient.GetIpInformationAsync(address, cancellationToken);
+            Ip2cLookupResult lookup =
+                await _ip2cClient.GetIpInformationAsync(address, cancellationToken);
 
-            IpAddress? ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
+            IpAddress? ip =
+                await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
 
             if (ip is null)
             {
                 return RefreshOutcome.Failed;
             }
 
-            bool wasChanged;
+            bool ipChanged;
+            bool countryChanged = false;
+            string? countryCode = null;
 
             switch (lookup.Status)
             {
                 case Ip2cLookupStatus.Success:
-                    wasChanged = ip.SetCountry(lookup.TwoLetterCode!, now);
-                    await EnsureCountryAsync(lookup, cancellationToken);
+                    ipChanged = ip.SetCountry(lookup.TwoLetterCode!, now);
+                    countryChanged = await EnsureCountryAsync(lookup, cancellationToken);
+                    countryCode = lookup.TwoLetterCode!;
                     break;
 
                 case Ip2cLookupStatus.Unknown:
-                    wasChanged = ip.MarkAsUnknown(now);
+                    ipChanged = ip.MarkAsUnknown(now);
                     break;
 
                 default:
@@ -136,10 +146,12 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return wasChanged ? RefreshOutcome.Changed : RefreshOutcome.Unchanged;
+            await InvalidateCacheAsync(address, ipChanged, countryChanged, countryCode, cancellationToken);
+
+            return ipChanged ? RefreshOutcome.Changed : RefreshOutcome.Unchanged;
         }
 
-        private async Task EnsureCountryAsync(
+        private async Task<bool> EnsureCountryAsync(
             Ip2cLookupResult lookup,
             CancellationToken cancellationToken)
         {
@@ -149,10 +161,32 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             if (country is null)
             {
                 _countryRepository.Add(new Country(lookup.TwoLetterCode!, lookup.ThreeLetterCode!, lookup.CountryName!));
+                return false;
             }
-            else
+
+            return country.UpdateInformation(lookup.ThreeLetterCode!, lookup.CountryName!);
+        }
+
+        private async Task InvalidateCacheAsync(
+            string address,
+            bool ipChanged,
+            bool countryChanged,
+            string? countryCode,
+            CancellationToken cancellationToken)
+        {
+            if (countryChanged && countryCode is not null)
             {
-                country.UpdateInformation(lookup.ThreeLetterCode!, lookup.CountryName!);
+                IReadOnlyList<string> addresses =
+                    await _ipAddressRepository.GetAddressesByCountryCodeAsync(countryCode, cancellationToken);
+
+                foreach (string cachedAddress in addresses)
+                {
+                    await _cache.RemoveAsync(cachedAddress, cancellationToken);
+                }
+            }
+            else if (ipChanged)
+            {
+                await _cache.RemoveAsync(address, cancellationToken);
             }
         }
 
