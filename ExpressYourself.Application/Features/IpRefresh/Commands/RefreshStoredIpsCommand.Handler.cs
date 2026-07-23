@@ -1,26 +1,23 @@
 ﻿using ExpressYourself.Application.Caching;
+using ExpressYourself.Application.Configuration;
 using ExpressYourself.Application.Features.IpRefresh.Contracts;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ExpressYourself.Application.Features.IpRefresh.Commands
 {
-    public sealed class RefreshStoredIpsCommandHandler
-        : IRequestHandler<RefreshStoredIpsCommand, RefreshStoredIpsResult>
+    public sealed class RefreshStoredIpsCommandHandler : IRequestHandler<RefreshStoredIpsCommand, RefreshStoredIpsResult>
     {
-        // TEMP: hard-coded for now. Become configurable (RefreshJobOptions.BatchSize /
-        // MaxConcurrency) when we wire options in the Quartz commit.
-        private const int BatchSize = 100;
-        private const int MaxConcurrency = 4;
-
         private readonly IIp2cClient _ip2cClient;
         private readonly IIpAddressRepository _ipAddressRepository;
         private readonly ICountryRepository _countryRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IIpInformationCache _cache;
+        private readonly RefreshJobOptions _options;
         private readonly TimeProvider _clock;
         private readonly ILogger<RefreshStoredIpsCommandHandler> _logger;
 
@@ -30,6 +27,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             ICountryRepository countryRepository,
             IUnitOfWork unitOfWork,
             IIpInformationCache cache,
+            IOptions<RefreshJobOptions> options,
             TimeProvider clock,
             ILogger<RefreshStoredIpsCommandHandler> logger)
         {
@@ -38,13 +36,12 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             _countryRepository = countryRepository;
             _unitOfWork = unitOfWork;
             _cache = cache;
+            _options = options.Value;
             _clock = clock;
             _logger = logger;
         }
 
-        public async Task<RefreshStoredIpsResult> Handle(
-            RefreshStoredIpsCommand request,
-            CancellationToken cancellationToken)
+        public async Task<RefreshStoredIpsResult> Handle(RefreshStoredIpsCommand request, CancellationToken cancellationToken)
         {
             int scanned = 0;
             int changed = 0;
@@ -56,8 +53,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
             while (true)
             {
-                IReadOnlyList<IpAddress> batch =
-                    await _ipAddressRepository.GetBatchAsync(afterAddress, BatchSize, cancellationToken);
+                IReadOnlyList<IpAddress> batch = await _ipAddressRepository.GetBatchAsync(afterAddress, _options.BatchSize, cancellationToken);
 
                 if (batch.Count == 0)
                 {
@@ -80,8 +76,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
                     try
                     {
-                        RefreshOutcome outcome =
-                            await ApplyAsync(lookup.Address, lookup.Result!, now, cancellationToken);
+                        RefreshOutcome outcome = await ApplyAsync(lookup.Address, lookup.Result!, now, cancellationToken);
 
                         if (outcome == RefreshOutcome.Changed)
                         {
@@ -111,7 +106,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
 
                 afterAddress = batch[^1].Address;
 
-                if (batch.Count < BatchSize)
+                if (batch.Count < _options.BatchSize)
                 {
                     break;
                 }
@@ -120,25 +115,24 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             return new RefreshStoredIpsResult(scanned, changed, unchanged, failed);
         }
 
-        private async Task<BatchLookup[]> LookupBatchAsync(
-            IReadOnlyList<IpAddress> batch,
-            CancellationToken cancellationToken)
+        private async Task<BatchLookup[]> LookupBatchAsync(IReadOnlyList<IpAddress> batch, CancellationToken cancellationToken)
         {
             var lookups = new BatchLookup[batch.Count];
 
             var options = new ParallelOptions
             {
-                MaxDegreeOfParallelism = MaxConcurrency,
+                MaxDegreeOfParallelism = _options.MaxConcurrency,
                 CancellationToken = cancellationToken
             };
 
-            await Parallel.ForEachAsync( Enumerable.Range(0, batch.Count), options, async (index, token) =>
+            await Parallel.ForEachAsync(Enumerable.Range(0, batch.Count), options, async (index, token) =>
             {
                 string address = batch[index].Address;
 
                 try
                 {
-                    Ip2cLookupResult result = await _ip2cClient.GetIpInformationAsync(address, token);
+                    Ip2cLookupResult result =
+                        await _ip2cClient.GetIpInformationAsync(address, token);
 
                     lookups[index] = new BatchLookup(address, result, null);
                 }
@@ -155,11 +149,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             return lookups;
         }
 
-        private async Task<RefreshOutcome> ApplyAsync(
-            string address,
-            Ip2cLookupResult lookup,
-            DateTimeOffset now,
-            CancellationToken cancellationToken)
+        private async Task<RefreshOutcome> ApplyAsync(string address, Ip2cLookupResult lookup, DateTimeOffset now, CancellationToken cancellationToken)
         {
             IpAddress? ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
 
@@ -195,9 +185,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             return ipChanged ? RefreshOutcome.Changed : RefreshOutcome.Unchanged;
         }
 
-        private async Task<bool> EnsureCountryAsync(
-            Ip2cLookupResult lookup,
-            CancellationToken cancellationToken)
+        private async Task<bool> EnsureCountryAsync(Ip2cLookupResult lookup, CancellationToken cancellationToken)
         {
             Country? country = await _countryRepository.GetByTwoLetterCodeAsync(lookup.TwoLetterCode!, cancellationToken);
 

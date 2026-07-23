@@ -1,9 +1,11 @@
 ﻿using ExpressYourself.Application.Caching;
+using ExpressYourself.Application.Configuration;
 using ExpressYourself.Application.Features.IpRefresh.Commands;
 using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace ExpressYourself.Tests.Application.Features.IpRefresh;
@@ -41,6 +43,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
             countryRepo.Object,
             uow.Object,
             cache.Object,
+            Options.Create(new RefreshJobOptions()),
             TimeProvider.System,
             NullLogger<RefreshStoredIpsCommandHandler>.Instance);
 
@@ -128,9 +131,9 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     [Fact]
     public async Task Handle_MultipleIps_TalliesEveryOutcomeIndependently()
     {
-        var changingIp = StoredIp("1.1.1.1", "US");   // will move to GR
-        var stableIp = StoredIp("2.2.2.2", "US");     // stays US
-        var failingIp = new IpAddress("3.3.3.3");     // lookup throws
+        var changingIp = StoredIp("1.1.1.1", "US");
+        var stableIp = StoredIp("2.2.2.2", "US");
+        var failingIp = new IpAddress("3.3.3.3");
         var (handler, client, _, countryRepo, _, _) = Build(changingIp, stableIp, failingIp);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))

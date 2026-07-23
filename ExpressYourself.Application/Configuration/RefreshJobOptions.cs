@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace ExpressYourself.Infrastructure.Scheduling.Configuration
+namespace ExpressYourself.Application.Configuration
 {
     public sealed class RefreshJobOptions
     {
