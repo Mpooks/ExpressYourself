@@ -8,6 +8,8 @@ namespace ExpressYourself.Application.Infrastructure.Persistence
 
         Task<IReadOnlyList<string>> GetAddressesByCountryCodeAsync(string twoLetterCode, CancellationToken cancellationToken);
 
+        Task<IReadOnlyList<IpAddress>> GetBatchAsync(string? afterAddress, int batchSize, CancellationToken cancellationToken);
+
         void Add(IpAddress ipAddress);
     }
 }
