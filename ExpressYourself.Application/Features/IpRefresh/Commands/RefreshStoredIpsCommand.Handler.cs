@@ -11,9 +11,10 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
     public sealed class RefreshStoredIpsCommandHandler
         : IRequestHandler<RefreshStoredIpsCommand, RefreshStoredIpsResult>
     {
-        // TEMP: hard-coded for now. Becomes configurable (RefreshJobOptions.BatchSize)
-        // when we wire options in the Quartz commit.
+        // TEMP: hard-coded for now. Become configurable (RefreshJobOptions.BatchSize /
+        // MaxConcurrency) when we wire options in the Quartz commit.
         private const int BatchSize = 100;
+        private const int MaxConcurrency = 4;
 
         private readonly IIp2cClient _ip2cClient;
         private readonly IIpAddressRepository _ipAddressRepository;
@@ -63,15 +64,24 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                     break;
                 }
 
-                foreach (IpAddress ipFromBatch in batch)
+                BatchLookup[] lookups = await LookupBatchAsync(batch, cancellationToken);
+
+                foreach (BatchLookup lookup in lookups)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     scanned++;
 
+                    if (lookup.Error is not null)
+                    {
+                        failed++;
+                        _logger.LogWarning(lookup.Error, "Failed to look up IP {Address}.", lookup.Address);
+                        continue;
+                    }
+
                     try
                     {
                         RefreshOutcome outcome =
-                            await RefreshSingleAsync(ipFromBatch.Address, now, cancellationToken);
+                            await ApplyAsync(lookup.Address, lookup.Result!, now, cancellationToken);
 
                         if (outcome == RefreshOutcome.Changed)
                         {
@@ -93,9 +103,11 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                     catch (Exception exception)
                     {
                         failed++;
-                        _logger.LogWarning(exception, "Failed to refresh IP {Address}.", ipFromBatch.Address);
+                        _logger.LogWarning(exception, "Failed to persist IP {Address}.", lookup.Address);
                     }
                 }
+
+                _unitOfWork.ClearTracked();
 
                 afterAddress = batch[^1].Address;
 
@@ -108,16 +120,48 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             return new RefreshStoredIpsResult(scanned, changed, unchanged, failed);
         }
 
-        private async Task<RefreshOutcome> RefreshSingleAsync(
+        private async Task<BatchLookup[]> LookupBatchAsync(
+            IReadOnlyList<IpAddress> batch,
+            CancellationToken cancellationToken)
+        {
+            var lookups = new BatchLookup[batch.Count];
+
+            var options = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = MaxConcurrency,
+                CancellationToken = cancellationToken
+            };
+
+            await Parallel.ForEachAsync( Enumerable.Range(0, batch.Count), options, async (index, token) =>
+            {
+                string address = batch[index].Address;
+
+                try
+                {
+                    Ip2cLookupResult result = await _ip2cClient.GetIpInformationAsync(address, token);
+
+                    lookups[index] = new BatchLookup(address, result, null);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    lookups[index] = new BatchLookup(address, null, exception);
+                }
+            });
+
+            return lookups;
+        }
+
+        private async Task<RefreshOutcome> ApplyAsync(
             string address,
+            Ip2cLookupResult lookup,
             DateTimeOffset now,
             CancellationToken cancellationToken)
         {
-            Ip2cLookupResult lookup =
-                await _ip2cClient.GetIpInformationAsync(address, cancellationToken);
-
-            IpAddress? ip =
-                await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
+            IpAddress? ip = await _ipAddressRepository.GetByAddressAsync(address, cancellationToken);
 
             if (ip is null)
             {
@@ -155,8 +199,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             Ip2cLookupResult lookup,
             CancellationToken cancellationToken)
         {
-            Country? country =
-                await _countryRepository.GetByTwoLetterCodeAsync(lookup.TwoLetterCode!, cancellationToken);
+            Country? country = await _countryRepository.GetByTwoLetterCodeAsync(lookup.TwoLetterCode!, cancellationToken);
 
             if (country is null)
             {
@@ -176,8 +219,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
         {
             if (countryChanged && countryCode is not null)
             {
-                IReadOnlyList<string> addresses =
-                    await _ipAddressRepository.GetAddressesByCountryCodeAsync(countryCode, cancellationToken);
+                IReadOnlyList<string> addresses = await _ipAddressRepository.GetAddressesByCountryCodeAsync(countryCode, cancellationToken);
 
                 foreach (string cachedAddress in addresses)
                 {
@@ -196,5 +238,7 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
             Unchanged,
             Failed
         }
+
+        private sealed record BatchLookup(string Address, Ip2cLookupResult? Result, Exception? Error);
     }
 }

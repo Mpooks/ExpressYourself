@@ -16,4 +16,6 @@ internal sealed class UnitOfWork : IUnitOfWork
       
         return await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public void ClearTracked() => _context.ChangeTracker.Clear();
 }
