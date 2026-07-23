@@ -12,8 +12,8 @@ namespace ExpressYourself.Gateway.Ip2c
                 throw new Ip2cResponseFormatException("Response cannot be null or empty.");
             }
 
-            var responseParts=rawResponse.Split(';');
-            if (responseParts.Length != 4) 
+            var responseParts = rawResponse.Split(';');
+            if (responseParts.Length != 4)
             {
                 throw new Ip2cResponseFormatException("Invalid IP2C response. Format must be [Status, TwoLetterCode, ThreeLetterCode, CountryName].");
             }
@@ -26,8 +26,25 @@ namespace ExpressYourself.Gateway.Ip2c
                 _ => throw new Ip2cResponseFormatException($"Unknown status '{responseParts[0]}'.")
             };
 
-            return new Ip2cLookupResult(status, responseParts[1], responseParts[2], responseParts[3]);
+            string twoLetterCode = responseParts[1];
+            string threeLetterCode = responseParts[2];
+            string countryName = responseParts[3];
+
+            if (status == Ip2cLookupStatus.Success && !IsValidSuccessShape(twoLetterCode, threeLetterCode, countryName))
+            {
+                throw new Ip2cResponseFormatException("I2PC retuned a malformed success response.");
+            }
+
+            return new Ip2cLookupResult(status, twoLetterCode, threeLetterCode, countryName);
         }
+        private static bool IsValidSuccessShape(string twoLetterCode, string threeLetterCode, string countryName) =>
+        IsLetterCodeOfLength(twoLetterCode, 2) &&
+        IsLetterCodeOfLength(threeLetterCode, 3) &&
+        !string.IsNullOrWhiteSpace(countryName);
+
+        private static bool IsLetterCodeOfLength(string value, int length) =>
+        value.Length == length && value.All(char.IsAsciiLetter);
+
 
     }
 }
