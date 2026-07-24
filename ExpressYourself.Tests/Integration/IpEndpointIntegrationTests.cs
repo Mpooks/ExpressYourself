@@ -40,7 +40,7 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenAddressInDatabase_ReturnsOkFromDatabase()
         {
-            const string address = "203.0.113.7";
+            const string address = "203.0.113.8";
             await SeedDatabaseSuccessAsync(address, "GR", "GRC", "Greece");
             _apiFactory.fakeIp2cClient.Throws(new Ip2cUnavailableException("Ip2c is unavailable"));
             var client = _apiFactory.CreateClient();
@@ -55,7 +55,7 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenNotCachedOrStored_FallsBackToIp2cReturnsOkAndPersists()
         {
-            const string address = "203.0.113.7";
+            const string address = "203.0.113.9";
             _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             var client = _apiFactory.CreateClient();
 
@@ -115,7 +115,7 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenUpstreamUnavailable_Returns503()
         {
-            const string address = "203.0.113.7";
+            const string address = "203.0.113.1";
             _apiFactory.fakeIp2cClient.Throws(new Ip2cUnavailableException("upstream down"));
             HttpClient client = _apiFactory.CreateClient();
 
