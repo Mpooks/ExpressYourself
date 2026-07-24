@@ -27,8 +27,6 @@ namespace ExpressYourself.Tests.Integration
 
                 builder.ConfigureTestServices(services =>
                 {
-                    // Replace SQL Server with EF's in-memory provider. Both provider
-                    // configs would otherwise apply, so strip SQL Server's first.
                     List<ServiceDescriptor> efDescriptors = services
                         .Where(descriptor =>
                             descriptor.ServiceType == typeof(DbContextOptions<ExpressYourselfDbContext>) ||
