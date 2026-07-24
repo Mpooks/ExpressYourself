@@ -10,6 +10,7 @@ using ExpressYourself.Infrastructure;
 using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.Configuration;
 using ExpressYourself.Infrastructure.Persistence.Context;
+using ExpressYourself.API.Middleware;
 using ExpressYourself.Infrastructure.Scheduling;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,11 @@ using ExpressYourself.API.HealthChecks;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 64 * 1024;
+});
 
 builder.Host.UseServiceProviderFactory(
 new AutofacServiceProviderFactory());
@@ -73,8 +79,9 @@ IHttpClientBuilder ip2cHttpClientBuilder =
         });
 
 
-ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBuilder =>
+ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", (pipelineBuilder,context) =>
 {
+    ILogger logger = context.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Ip2cCircuitBreaker");
     pipelineBuilder.AddRetry(
         new HttpRetryStrategyOptions
         {
@@ -90,8 +97,20 @@ ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBui
             FailureRatio = 0.9,
             MinimumThroughput = ip2cOptions.CircuitBreakerFailureCount,
             SamplingDuration = TimeSpan.FromSeconds(30),
-            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
-        });
+            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds),
+            OnOpened = arguments =>
+            {
+                logger.LogWarning("IP2C circuit braker opened for {BreakDurationSeconds} seconds.",arguments.BreakDuration.TotalSeconds);
+
+                return default;
+            },
+            OnClosed = arguments =>
+            {
+                logger.LogInformation("IP2C circuit breaker closed.");
+
+                return default;
+            }
+    });
 
     pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
 });
@@ -203,6 +222,7 @@ builder.Services.AddRateLimiter(rateLimiter =>
     });
 });
 var app = builder.Build();
+app.UseMiddleware<CorrelationLoggingMiddleware>();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {

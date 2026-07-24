@@ -121,6 +121,13 @@ namespace ExpressYourself.Application.Features.IpRefresh.Commands
                 }
             }
 
+            _logger.LogInformation(
+            "IP refresh completed. Scanned: {Scanned}, Changed: {Changed}, Unchanged: {Unchanged}, Failed: {Failed}.",
+            scanned,
+            changed,
+            unchanged,
+            failed);
+
             return new RefreshStoredIpsResult(scanned, changed, unchanged, failed);
         }
 

@@ -5,6 +5,7 @@ using ExpressYourself.Application.Infrastructure.Persistence;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Domain.Entities;
 using ExpressYourself.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -18,13 +19,15 @@ public sealed class RefreshStoredIpsCommandHandlerTests
                     Mock<IIpAddressRepository> ipRepo,
                     Mock<ICountryRepository> countryRepo,
                     Mock<IUnitOfWork> uow,
-                    Mock<IIpInformationCache> cache) Build(params IpAddress[] stored)
+                    Mock<IIpInformationCache> cache,
+        Mock<ILogger<RefreshStoredIpsCommandHandler>> logger) Build(params IpAddress[] stored)
     {
         var client = new Mock<IIp2cClient>();
         var ipRepo = new Mock<IIpAddressRepository>();
         var countryRepo = new Mock<ICountryRepository>();
         var uow = new Mock<IUnitOfWork>();
         var cache = new Mock<IIpInformationCache>();
+        var logger = new Mock<ILogger<RefreshStoredIpsCommandHandler>>();
 
         ipRepo.SetupSequence(r => r.GetBatchAsync(It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(stored.ToList())
@@ -40,9 +43,9 @@ public sealed class RefreshStoredIpsCommandHandlerTests
             cache.Object,
             Options.Create(new RefreshJobOptions()),
             TimeProvider.System,
-            NullLogger<RefreshStoredIpsCommandHandler>.Instance);
+            logger.Object);
 
-        return (handler, client, ipRepo, countryRepo, uow, cache);
+        return (handler, client, ipRepo, countryRepo, uow, cache,logger);
     }
 
     private static IpAddress StoredIp(string address, string country)
@@ -56,7 +59,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_IpCountryChanged_CountsChangedAndInvalidatesThatIpOnly()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, client, ipRepo, countryRepo, _, cache) = Build(stored);
+        var (handler, client, ipRepo, countryRepo, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
@@ -74,7 +77,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_CountryMetadataChanged_InvalidatesAllAddressesForThatCountry()
     {
         var stored = StoredIp("1.1.1.1", "GR");
-        var (handler, client, ipRepo, countryRepo, _, cache) = Build(stored);
+        var (handler, client, ipRepo, countryRepo, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Hellas"));
@@ -94,7 +97,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_SameCountry_CountsUnchangedAndDoesNotInvalidate()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, client, _, countryRepo, _, cache) = Build(stored);
+        var (handler, client, _, countryRepo, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "US", "USA", "United States"));
@@ -111,7 +114,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_LookupThrows_CountsFailed()
     {
         var stored = new IpAddress("1.1.1.1");
-        var (handler, client, _, _, _, cache) = Build(stored);
+        var (handler, client, _, _, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ThrowsAsync(new HttpRequestException("ip2c down"));
@@ -129,7 +132,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
         var changingIp = StoredIp("1.1.1.1", "US");
         var stableIp = StoredIp("2.2.2.2", "US");
         var failingIp = new IpAddress("3.3.3.3");
-        var (handler, client, _, countryRepo, _, _) = Build(changingIp, stableIp, failingIp);
+        var (handler, client, _, countryRepo, _, _,logger) = Build(changingIp, stableIp, failingIp);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
@@ -149,13 +152,27 @@ public sealed class RefreshStoredIpsCommandHandlerTests
         Assert.Equal(1, result.Changed);
         Assert.Equal(1, result.Unchanged);
         Assert.Equal(1, result.Failed);
+
+        logger.Verify(
+        log => log.Log(
+        LogLevel.Information,
+        It.IsAny<EventId>(),
+        It.Is<It.IsAnyType>((state, _) =>
+            state.ToString()!.Contains("IP refresh completed") &&
+            state.ToString()!.Contains("Scanned: 3") &&
+            state.ToString()!.Contains("Changed: 1") &&
+            state.ToString()!.Contains("Unchanged: 1") &&
+            state.ToString()!.Contains("Failed: 1")),
+        It.IsAny<Exception?>(),
+        It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+        Times.Once);
     }
 
     [Fact]
     public async Task Handle_CacheInvalidationThrows_StillCountsChangedNotFailed()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, client, _, countryRepo, _, cache) = Build(stored);
+        var (handler, client, _, countryRepo, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
@@ -175,7 +192,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     {
         var failing = StoredIp("1.1.1.1", "US");
         var succeeding = StoredIp("2.2.2.2", "US");
-        var (handler, client, _, countryRepo, uow, _) = Build(failing, succeeding);
+        var (handler, client, _, countryRepo, uow, _,logger) = Build(failing, succeeding);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
@@ -201,7 +218,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_UnknownIp_MarksUnknownCountsChangedAndInvalidatesThatIpOnly()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, client, ipRepo, _, _, cache) = Build(stored);
+        var (handler, client, ipRepo, _, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Unknown, null, null, null));
@@ -221,7 +238,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     {
         var stored = new IpAddress("1.1.1.1");
         stored.MarkAsUnknown(DateTimeOffset.UtcNow.AddDays(-1));
-        var (handler, client, _, _, _, cache) = Build(stored);
+        var (handler, client, _, _, _, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Unknown, null, null, null));
@@ -236,7 +253,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_InvalidStatus_CountsFailedAndDoesNotPersistOrInvalidate()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, client, ipRepo, _, uow, cache) = Build(stored);
+        var (handler, client, ipRepo, _, uow, cache,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Invalid, null, null, null));
@@ -338,7 +355,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_WhenTokenAlreadyCanceled_ThrowsOperationCanceled()
     {
         var stored = StoredIp("1.1.1.1", "US");
-        var (handler, _, _, _, _, _) = Build(stored);
+        var (handler, _, _, _, _, _,logger) = Build(stored);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -351,7 +368,7 @@ public sealed class RefreshStoredIpsCommandHandlerTests
     public async Task Handle_SuccessForCountryNotInDatabase_AddsNewCountry()
     {
         var stored = new IpAddress("1.1.1.1");
-        var (handler, client, _, countryRepo, _, _) = Build(stored);
+        var (handler, client, _, countryRepo, _, _,logger) = Build(stored);
 
         client.Setup(c => c.GetIpInformationAsync("1.1.1.1", It.IsAny<CancellationToken>()))
               .ReturnsAsync(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));

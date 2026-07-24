@@ -62,7 +62,9 @@ namespace ExpressYourself.Infrastructure
 
                 var cache = context.Resolve<IIpInformationCache>();
 
-                return new CachedIpInformationProvider(inner, cache);
+                var logger = context.Resolve<ILogger<CachedIpInformationProvider>>();
+
+                return new CachedIpInformationProvider(inner, cache, logger);
             })
             .As<IIpInformationProvider>()
             .InstancePerLifetimeScope();

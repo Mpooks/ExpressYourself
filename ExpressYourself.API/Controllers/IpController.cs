@@ -25,7 +25,8 @@ public sealed class IpController : ControllerBase
     [ProducesResponseType<ProblemDetails>  (StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>  (StatusCodes.Status502BadGateway)]
     [ProducesResponseType<ProblemDetails>  (StatusCodes.Status503ServiceUnavailable)]
-    public async Task<ActionResult<IpInformationDto>> GetAsync(string address, CancellationToken cancellationToken)
+    public async Task<ActionResult<IpInformationDto>> GetAsync([FromRoute][System.ComponentModel.DataAnnotations.StringLength(15)]
+    string address,CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetIpInformationQuery(address), cancellationToken);
         return Ok(result);
