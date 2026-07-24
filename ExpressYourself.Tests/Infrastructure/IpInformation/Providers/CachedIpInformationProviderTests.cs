@@ -3,6 +3,7 @@ using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Infrastructure.IpInformation.Providers;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ExpressYourself.Tests.Infrastructure.IpInformation.Providers;
@@ -17,6 +18,7 @@ public sealed class CachedIpInformationProviderTests
 
     private readonly Mock<IIpInformationProvider> _inner = new();
     private readonly Mock<IIpInformationCache> _cache = new();
+    private readonly Mock<ILogger<CachedIpInformationProvider>> _logger = new();
 
     [Fact]
     public async Task GetIpInformationAsync_CacheHit_ReturnsCachedEntry()
@@ -37,6 +39,8 @@ public sealed class CachedIpInformationProviderTests
 
         _cache.Verify(
             cache => cache.SetAsync(It.IsAny<string>(), It.IsAny<IpInformationCacheEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        
+        VerifyLog(LogLevel.Information,"Cache hit for IP",Times.Once());
     }
 
     [Fact]
@@ -67,6 +71,8 @@ public sealed class CachedIpInformationProviderTests
                     entry.ThreeLetterCode == Dto.ThreeLetterCountryCode),
                 CancellationToken.None),
             Times.Once);
+
+        VerifyLog(LogLevel.Information,"Cache miss for IP",Times.Once());
     }
 
     [Fact]
@@ -94,6 +100,8 @@ public sealed class CachedIpInformationProviderTests
 
         Assert.Equal(1, calls);
         Assert.All(results, result => Assert.Equal(Dto, result));
+
+        VerifyLog(LogLevel.Information,"Cache miss for IP",Times.Exactly(20));
     }
 
     [Fact]
@@ -254,7 +262,8 @@ public sealed class CachedIpInformationProviderTests
     {
         return new CachedIpInformationProvider(
             _inner.Object,
-            _cache.Object);
+            _cache.Object,
+            _logger.Object);
     }
 
     private void SetupEmptyCache()
@@ -290,5 +299,18 @@ public sealed class CachedIpInformationProviderTests
                 It.IsAny<CancellationToken>()))
             .Callback<string, IpInformationCacheEntry, CancellationToken>((address, entry, cancellationToken) => storedEntry = entry)
             .Returns(Task.CompletedTask);
+    }
+
+    private void VerifyLog(LogLevel level,string expectedMessage,Times times)
+    {
+        _logger.Verify(
+            logger => logger.Log(
+                level,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains(expectedMessage)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            times);
     }
 }
