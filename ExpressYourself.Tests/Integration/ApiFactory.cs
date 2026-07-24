@@ -3,7 +3,6 @@ using ExpressYourself.Infrastructure.Persistence.Context;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.MsSql;
@@ -37,16 +36,7 @@ namespace ExpressYourself.Tests.Integration
             }
         }
 
-        private void ContainerConfiguration(WebHostBuilderContext context, IConfigurationBuilder config)
-        {
-            Dictionary<string, string?> substitutes = new Dictionary<string, string?>();
-            substitutes["ConnectionStrings:SqlServer"] = _sqlContainer.GetConnectionString();
-            substitutes["ConnectionStrings:Redis"] = _redisContainer.GetConnectionString();
-            substitutes["Cache:Provider"] = "Redis";
-            substitutes["RefreshJob:Enabled"] = "false";
 
-            config.AddInMemoryCollection(substitutes);
-        }
 
         private void FakeServices(IServiceCollection services)
         {
@@ -60,6 +50,8 @@ namespace ExpressYourself.Tests.Integration
             builder.UseSetting("ConnectionStrings:Redis", _redisContainer.GetConnectionString());
             builder.UseSetting("Cache:Provider", "Redis");
             builder.UseSetting("RefreshJob:Enabled", "false");
+            builder.UseSetting("RateLimiting:IpLookup:PermitLimit", "1000000");
+            builder.UseSetting("RateLimiting:CountryReport:PermitLimit", "1000000");
             builder.UseEnvironment("Development");
             builder.ConfigureTestServices(FakeServices);
         }
