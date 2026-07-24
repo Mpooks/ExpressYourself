@@ -40,7 +40,11 @@ namespace ExpressYourself.API.ExceptionHandler
             
             return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
             {HttpContext = httpContext, Exception = ex, ProblemDetails =
-            {Status = status,Title = title, Detail = status == StatusCodes.Status500InternalServerError? "An unexpected error occurred." : ex.Message}});
+            {Status = status,Title = title, Detail = status == StatusCodes.Status500InternalServerError? "An unexpected error occurred." : ex.Message,Extensions =
+        {
+            ["traceId"] = httpContext.TraceIdentifier
+        }}
+            });
         }
     }
 }

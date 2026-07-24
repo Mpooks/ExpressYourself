@@ -3,6 +3,7 @@ using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Strategies;
 using ExpressYourself.Domain.Validation;
+using Microsoft.Extensions.Logging;
 
 namespace ExpressYourself.Infrastructure.IpInformation.Providers
 {
@@ -14,14 +15,17 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 
         private readonly IIpInformationProvider _inner;
         private readonly IIpInformationCache _cache;
+        private readonly ILogger<CachedIpInformationProvider> _logger;
 
-        public CachedIpInformationProvider(IIpInformationProvider inner, IIpInformationCache cache)
+        public CachedIpInformationProvider(IIpInformationProvider inner, IIpInformationCache cache, ILogger<CachedIpInformationProvider> logger)
         {
             ArgumentNullException.ThrowIfNull(inner);
             ArgumentNullException.ThrowIfNull(cache);
+            ArgumentNullException.ThrowIfNull(logger);
 
             _inner = inner;
             _cache = cache;
+            _logger = logger;
         }
 
         public async Task<IpInformationDto> GetIpInformationAsync(string address, CancellationToken cancellationToken)
@@ -32,8 +36,10 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 
             if (cachedEntry is not null)
             {
+                _logger.LogInformation("Cache hit for IP {Address}.",normalizedAddress);
                 return CreateDto(address, cachedEntry);
             }
+            _logger.LogInformation("Cache miss for IP {Address}.",normalizedAddress);
 
             GateEntry gate = RentGate(normalizedAddress);
 
@@ -47,6 +53,7 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
 
                     if (cachedEntry is not null)
                     {
+                        _logger.LogInformation("Cache hit for IP {Address} after waiting for an active lookup.",normalizedAddress);
                         return CreateDto(address, cachedEntry);
                     }
 

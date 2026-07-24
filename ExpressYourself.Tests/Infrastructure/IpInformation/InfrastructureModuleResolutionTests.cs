@@ -34,6 +34,9 @@ public sealed class InfrastructureModuleResolutionTests
         builder.RegisterInstance(NullLogger<DatabaseIpInformationProvider>.Instance)
                .As<ILogger<DatabaseIpInformationProvider>>();
 
+        builder.RegisterInstance(
+        NullLogger<CachedIpInformationProvider>.Instance)
+        .As<ILogger<CachedIpInformationProvider>>();
         using var container = builder.Build();
 
         var provider = container.Resolve<IIpInformationProvider>();
