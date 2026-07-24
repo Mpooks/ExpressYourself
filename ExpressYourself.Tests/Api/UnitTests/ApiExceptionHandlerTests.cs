@@ -2,6 +2,8 @@
 using ExpressYourself.Application.Exceptions;
 using ExpressYourself.Gateway.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -35,6 +37,41 @@ namespace ExpressYourself.Tests.Api.UnitTests
 
             // Assert
             Assert.Equal(expectedStatus, context.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task TryHandleAsync_WhenExceptionOccurs_AddsTraceIdToProblemDetails()
+        {
+            // Arrange
+            ProblemDetailsContext? capturedContext = null;
+
+            var problemDetailsService = new Mock<IProblemDetailsService>();
+
+            problemDetailsService
+                .Setup(x => x.TryWriteAsync(It.IsAny<ProblemDetailsContext>()))
+                .Callback<ProblemDetailsContext>(context => capturedContext = context)
+                .ReturnsAsync(true);
+
+            var logger = Mock.Of<ILogger<ApiExceptionHandler>>();
+
+            var handler = new ApiExceptionHandler(
+                problemDetailsService.Object,
+                logger);
+
+            var httpContext = new DefaultHttpContext();
+            httpContext.TraceIdentifier = "trace-123";
+
+            // Act
+            await handler.TryHandleAsync(
+                httpContext,
+                new Exception("Boom"),
+                CancellationToken.None);
+
+            // Assert
+            Assert.NotNull(capturedContext);
+            Assert.Equal(
+                "trace-123",
+                capturedContext!.ProblemDetails.Extensions["traceId"]);
         }
     }
     
