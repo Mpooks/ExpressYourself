@@ -19,6 +19,8 @@ using Polly;
 using Quartz;
 using System.Net.Http.Headers;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using ExpressYourself.API.HealthChecks;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -128,7 +130,16 @@ if (cacheOptions.UsesRedis)
         options.InstanceName = "ExpressYourself:";
     });
 }
+builder.Services.AddScoped<DatabaseHealthCheck>();
 
+IHealthChecksBuilder healthChecks = builder.Services.AddHealthChecks();
+healthChecks.AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" });
+
+if (cacheOptions.UsesRedis)
+{
+    builder.Services.AddScoped<RedisHealthCheck>();
+    healthChecks.AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready" });
+}
 RefreshJobOptions? refreshOptions = builder.Configuration
     .GetSection(RefreshJobOptions.SectionName)
     .Get<RefreshJobOptions>();
@@ -204,6 +215,18 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 
 app.UseAuthorization();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+});
 
 app.MapControllers();
 

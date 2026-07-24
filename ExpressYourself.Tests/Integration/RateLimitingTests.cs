@@ -27,9 +27,19 @@ namespace ExpressYourself.Tests.Integration
 
                 builder.ConfigureTestServices(services =>
                 {
+                    // Replace SQL Server with EF's in-memory provider. Both provider
+                    // configs would otherwise apply, so strip SQL Server's first.
+                    List<ServiceDescriptor> efDescriptors = services
+                        .Where(descriptor =>
+                            descriptor.ServiceType == typeof(DbContextOptions<ExpressYourselfDbContext>) ||
+                            (descriptor.ServiceType.FullName?.Contains("IDbContextOptionsConfiguration") ?? false))
+                        .ToList();
 
-                    services.RemoveAll<DbContextOptions<ExpressYourselfDbContext>>();
-                    services.RemoveAll<ExpressYourselfDbContext>();
+                    foreach (ServiceDescriptor descriptor in efDescriptors)
+                    {
+                        services.Remove(descriptor);
+                    }
+
                     services.AddDbContext<ExpressYourselfDbContext>(options =>
                         options.UseInMemoryDatabase("RateLimitingTests"));
 
