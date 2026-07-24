@@ -21,6 +21,11 @@ using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 64 * 1024;
+});
+
 builder.Host.UseServiceProviderFactory(
 new AutofacServiceProviderFactory());
 
