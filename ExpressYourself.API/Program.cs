@@ -1,21 +1,26 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using ExpressYourself.API.Configuration;
 using ExpressYourself.API.ExceptionHandler;
 using ExpressYourself.Application;
+using ExpressYourself.Application.Configuration;
 using ExpressYourself.Application.Interfaces;
 using ExpressYourself.Gateway.Ip2c;
 using ExpressYourself.Infrastructure;
 using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.Configuration;
 using ExpressYourself.Infrastructure.Persistence.Context;
+using ExpressYourself.Infrastructure.Scheduling;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
-using System.Net.Http.Headers;
-using ExpressYourself.Application.Configuration;
-using ExpressYourself.Infrastructure.Scheduling;
 using Quartz;
+using System.Net.Http.Headers;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using ExpressYourself.API.HealthChecks;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -125,7 +130,16 @@ if (cacheOptions.UsesRedis)
         options.InstanceName = "ExpressYourself:";
     });
 }
+builder.Services.AddScoped<DatabaseHealthCheck>();
 
+IHealthChecksBuilder healthChecks = builder.Services.AddHealthChecks();
+healthChecks.AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" });
+
+if (cacheOptions.UsesRedis)
+{
+    builder.Services.AddScoped<RedisHealthCheck>();
+    healthChecks.AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready" });
+}
 RefreshJobOptions? refreshOptions = builder.Configuration
     .GetSection(RefreshJobOptions.SectionName)
     .Get<RefreshJobOptions>();
@@ -162,7 +176,32 @@ if (refreshOptions.Enabled)
         options.WaitForJobsToComplete = true;
     });
 }
+builder.Services
+    .AddOptions<RateLimitingOptions>()
+    .Bind(builder.Configuration.GetSection(RateLimitingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
+RateLimitingOptions rateLimitingOptions = builder.Configuration
+    .GetSection(RateLimitingOptions.SectionName)
+    .Get<RateLimitingOptions>() ?? new RateLimitingOptions();
+
+builder.Services.AddRateLimiter(rateLimiter =>
+{
+    rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    rateLimiter.AddFixedWindowLimiter(RateLimitingOptions.IpLookupPolicy, limiter =>
+    {
+        limiter.PermitLimit = rateLimitingOptions.IpLookup.PermitLimit;
+        limiter.Window = TimeSpan.FromSeconds(rateLimitingOptions.IpLookup.WindowSeconds);
+    });
+
+    rateLimiter.AddFixedWindowLimiter(RateLimitingOptions.CountryReportPolicy, limiter =>
+    {
+        limiter.PermitLimit = rateLimitingOptions.CountryReport.PermitLimit;
+        limiter.Window = TimeSpan.FromSeconds(rateLimitingOptions.CountryReport.WindowSeconds);
+    });
+});
 var app = builder.Build();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
@@ -173,7 +212,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseRateLimiter();
+
 app.UseAuthorization();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = HealthCheckResponseWriter.WriteAsync
+});
 
 app.MapControllers();
 
