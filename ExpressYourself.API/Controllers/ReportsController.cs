@@ -2,12 +2,14 @@
 using MediatR;
 using ExpressYourself.Application.Features.CountryReports.Contracts;
 using ExpressYourself.Application.Features.CountryReports.Queries;
-
+using Microsoft.AspNetCore.RateLimiting;
+using ExpressYourself.API.Configuration;
 
 namespace ExpressYourself.API.Controllers;
 
 [ApiController]
 [Route("api/reports")]
+[EnableRateLimiting(RateLimitingOptions.CountryReportPolicy)]
 public sealed class ReportsController : ControllerBase
 {
     private readonly ISender _sender;

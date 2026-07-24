@@ -1,13 +1,17 @@
-﻿using ExpressYourself.Application.Features.IpInformation.Contracts;
+﻿using ExpressYourself.API.Configuration;
+using ExpressYourself.Application.Features.IpInformation.Contracts;
 using ExpressYourself.Application.Features.IpInformation.Queries;
-using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using ExpressYourself.API.Configuration;
 
 
 namespace ExpressYourself.API.Controllers;
 
 [ApiController]
 [Route("api/ips")]
+[EnableRateLimiting(RateLimitingOptions.IpLookupPolicy)]
 public sealed class IpController : ControllerBase
 {
     private readonly ISender _sender;
