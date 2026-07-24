@@ -21,8 +21,6 @@ namespace ExpressYourself.Tests.Integration
                 builder.UseSetting("RefreshJob:Enabled", "false");
                 builder.ConfigureTestServices(services =>
                 {
-                    // Strip the SQL Server registration so only the in-memory
-                    // provider remains (EF rejects two providers on one context).
                     List<ServiceDescriptor> efDescriptors = services
                         .Where(descriptor =>
                             descriptor.ServiceType == typeof(DbContextOptions<ExpressYourselfDbContext>) ||
