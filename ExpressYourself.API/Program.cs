@@ -8,6 +8,7 @@ using ExpressYourself.Infrastructure;
 using ExpressYourself.Infrastructure.Caching.Configuration;
 using ExpressYourself.Infrastructure.Configuration;
 using ExpressYourself.Infrastructure.Persistence.Context;
+using ExpressYourself.API.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
@@ -68,8 +69,9 @@ IHttpClientBuilder ip2cHttpClientBuilder =
         });
 
 
-ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBuilder =>
+ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", (pipelineBuilder,context) =>
 {
+    ILogger logger = context.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Ip2cCircuitBreaker");
     pipelineBuilder.AddRetry(
         new HttpRetryStrategyOptions
         {
@@ -85,8 +87,20 @@ ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", pipelineBui
             FailureRatio = 0.9,
             MinimumThroughput = ip2cOptions.CircuitBreakerFailureCount,
             SamplingDuration = TimeSpan.FromSeconds(30),
-            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds)
-        });
+            BreakDuration = TimeSpan.FromSeconds(ip2cOptions.CircuitBreakerDurationSeconds),
+            OnOpened = arguments =>
+            {
+                logger.LogWarning("IP2C circuit braker opened for {BreakDurationSeconds} seconds.",arguments.BreakDuration.TotalSeconds);
+
+                return default;
+            },
+            OnClosed = arguments =>
+            {
+                logger.LogInformation("IP2C circuit breaker closed.");
+
+                return default;
+            }
+    });
 
     pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(ip2cOptions.TimeoutSeconds));
 });
@@ -164,6 +178,7 @@ if (refreshOptions.Enabled)
 }
 
 var app = builder.Build();
+app.UseMiddleware<CorrelationLoggingMiddleware>();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
