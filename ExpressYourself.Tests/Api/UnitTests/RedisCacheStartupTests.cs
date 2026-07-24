@@ -16,6 +16,7 @@ public sealed class RedisCacheStartupTests
     private const string ProviderVariable = "Cache__Provider";
     private const string TtlVariable = "Cache__DefaultTtlMinutes";
     private const string ConnectionVariable = "ConnectionStrings__Redis";
+    private const string RefreshVariable = "RefreshJob__Enabled";
 
     [Fact]
     public void Services_RedisProvider_ResolvesFallbackCache()
@@ -26,6 +27,8 @@ public sealed class RedisCacheStartupTests
 
         string? previousConnection = Environment.GetEnvironmentVariable(ConnectionVariable);
 
+        string? previousRefresh = Environment.GetEnvironmentVariable(RefreshVariable);
+
         try
         {
             Environment.SetEnvironmentVariable(ProviderVariable,"redis");
@@ -33,6 +36,8 @@ public sealed class RedisCacheStartupTests
             Environment.SetEnvironmentVariable(TtlVariable, "60");
 
             Environment.SetEnvironmentVariable(ConnectionVariable, "localhost:6379,abortConnect=false");
+
+            Environment.SetEnvironmentVariable(RefreshVariable, "false");
 
             using var factory = new WebApplicationFactory<Program>();
 
@@ -50,6 +55,8 @@ public sealed class RedisCacheStartupTests
             Environment.SetEnvironmentVariable(TtlVariable, previousTtl);
 
             Environment.SetEnvironmentVariable(ConnectionVariable, previousConnection);
+
+            Environment.SetEnvironmentVariable(RefreshVariable, previousRefresh);
         }
     }
 }
