@@ -20,7 +20,7 @@ public sealed class CountryReportRepository : ICountryReportRepository
         """
         SELECT c.CountryName AS CountryName, 
         COUNT(*) AS AddressesCount, 
-        MAX(ip.LastUpdated) AS LastAddressUpdated
+        MAX(ip.LastUpdatedAtUtc) AS LastAddressUpdated
         FROM IpAddresses ip
         INNER JOIN Countries c ON c.TwoLetterCode = ip.CountryTwoLetterCode
         """;

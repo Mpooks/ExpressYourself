@@ -13,6 +13,9 @@ using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using System.Net.Http.Headers;
+using ExpressYourself.Application.Configuration;
+using ExpressYourself.Infrastructure.Scheduling;
+using Quartz;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -120,6 +123,43 @@ if (cacheOptions.UsesRedis)
     {
         options.Configuration = redisConnectionString;
         options.InstanceName = "ExpressYourself:";
+    });
+}
+
+RefreshJobOptions? refreshOptions = builder.Configuration
+    .GetSection(RefreshJobOptions.SectionName)
+    .Get<RefreshJobOptions>();
+
+if (refreshOptions is null)
+{
+    throw new InvalidOperationException("RefreshJob configuration is missing.");
+}
+
+builder.Services
+    .AddOptions<RefreshJobOptions>()
+    .Bind(builder.Configuration.GetSection(RefreshJobOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+if (refreshOptions.Enabled)
+{
+    builder.Services.AddQuartz(quartz =>
+    {
+        var jobKey = new JobKey("RefreshStoredIps");
+
+        quartz.AddJob<RefreshStoredIpsJob>(job => job.WithIdentity(jobKey));
+
+        quartz.AddTrigger(trigger => trigger
+            .ForJob(jobKey)
+            .WithIdentity("RefreshStoredIps-trigger")
+            .WithCronSchedule(
+                refreshOptions.CronExpression,
+                cron => cron.WithMisfireHandlingInstructionDoNothing()));
+    });
+
+    builder.Services.AddQuartzHostedService(options =>
+    {
+        options.WaitForJobsToComplete = true;
     });
 }
 

@@ -32,12 +32,13 @@ public sealed class ExpressYourselfDbContext : DbContext
             entity.Property(i => i.Address).HasMaxLength(15).IsRequired();
             entity.Property(i => i.CountryTwoLetterCode).HasMaxLength(2).IsFixedLength().IsRequired(false);
             entity.Property(i => i.Status).HasConversion<int>().IsRequired();
-            entity.Property(i => i.LastUpdated).IsRequired(false);
+            entity.Property(i => i.LastCheckedAtUtc).IsRequired(false);
+            entity.Property(i => i.LastUpdatedAtUtc).IsRequired(false);
             entity.HasOne<Country>()
                   .WithMany()
                   .HasForeignKey(i => i.CountryTwoLetterCode)
                   .OnDelete(DeleteBehavior.SetNull);
-            entity.Property<byte[]>("RowVersion").IsRowVersion();
+            entity.Property(i => i.RowVersion).IsRowVersion();
         });
     }
 }

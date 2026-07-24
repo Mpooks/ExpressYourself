@@ -11,7 +11,11 @@ public sealed class IpAddress
 
     public IpStatus Status { get; private set; }
 
-    public DateTimeOffset? LastUpdated { get; private set; }
+    public DateTimeOffset? LastCheckedAtUtc { get; private set; }
+
+    public DateTimeOffset? LastUpdatedAtUtc { get; private set; }
+
+    public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
 
     private IpAddress()
     {
@@ -24,23 +28,19 @@ public sealed class IpAddress
 
         CountryTwoLetterCode = null;
         Status = IpStatus.Pending;
-        LastUpdated = null;
+        LastCheckedAtUtc = null;
+        LastUpdatedAtUtc = null;
     }
 
-    public bool SetCountry(
-        string countryTwoLetterCode,
-        DateTimeOffset updatedAt)
+    public bool SetCountry(string countryTwoLetterCode, DateTimeOffset checkedAt)
     {
-        string normalizedCountryCode =
-            CountryCodeValidator.Normalize(
-                countryTwoLetterCode,
-                2);
+        string normalizedCountryCode = CountryCodeValidator.Normalize(countryTwoLetterCode, 2);
 
-        DateTimeOffset updatedAtUtc =
-            updatedAt.ToUniversalTime();
+        DateTimeOffset checkedAtUtc = checkedAt.ToUniversalTime();
 
-        bool hasChanged =
-            Status != IpStatus.Success || CountryTwoLetterCode != normalizedCountryCode;
+        LastCheckedAtUtc = checkedAtUtc;
+
+        bool hasChanged = (Status != IpStatus.Success) || (CountryTwoLetterCode != normalizedCountryCode);
 
         if (!hasChanged)
         {
@@ -49,19 +49,17 @@ public sealed class IpAddress
 
         CountryTwoLetterCode = normalizedCountryCode;
         Status = IpStatus.Success;
-        LastUpdated = updatedAtUtc;
-
+        LastUpdatedAtUtc = checkedAtUtc;
         return true;
     }
 
-    public bool MarkAsUnknown(
-        DateTimeOffset updatedAt)
+    public bool MarkAsUnknown(DateTimeOffset checkedAt)
     {
-        DateTimeOffset updatedAtUtc =
-            updatedAt.ToUniversalTime();
+        DateTimeOffset checkedAtUtc = checkedAt.ToUniversalTime();
 
-        bool hasChanged =
-            Status != IpStatus.UnknownIp || CountryTwoLetterCode is not null;
+        LastCheckedAtUtc = checkedAtUtc;
+
+        bool hasChanged = (Status != IpStatus.UnknownIp) || (CountryTwoLetterCode is not null);
 
         if (!hasChanged)
         {
@@ -70,8 +68,7 @@ public sealed class IpAddress
 
         CountryTwoLetterCode = null;
         Status = IpStatus.UnknownIp;
-        LastUpdated = updatedAtUtc;
-
+        LastUpdatedAtUtc = checkedAtUtc;
         return true;
     }
 }

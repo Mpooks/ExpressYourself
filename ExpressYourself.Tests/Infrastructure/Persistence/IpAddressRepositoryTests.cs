@@ -92,4 +92,25 @@ public sealed class IpAddressRepositoryTests
 
         Assert.Empty(result);
     }
+
+    [Fact]
+    public async Task GetBatchAsync_PagesThroughAllAddresses_InStableKeysetOrder()
+    {
+        using var context = GetInMemoryDbContext();
+        var repository = new IpAddressRepository(context);
+
+        repository.Add(new IpAddress("1.1.1.1"));
+        repository.Add(new IpAddress("2.2.2.2"));
+        repository.Add(new IpAddress("3.3.3.3"));
+        await context.SaveChangesAsync();
+
+        var firstPage = await repository.GetBatchAsync(null, 2, CancellationToken.None);
+        Assert.Equal(new[] { "1.1.1.1", "2.2.2.2" }, firstPage.Select(ip => ip.Address));
+
+        var secondPage = await repository.GetBatchAsync(firstPage[^1].Address, 2, CancellationToken.None);
+        Assert.Equal(new[] { "3.3.3.3" }, secondPage.Select(ip => ip.Address));
+
+        var thirdPage = await repository.GetBatchAsync(secondPage[^1].Address, 2, CancellationToken.None);
+        Assert.Empty(thirdPage);
+    }
 }

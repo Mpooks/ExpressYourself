@@ -26,7 +26,8 @@ public sealed class IpAddressTests
         Assert.Equal("1.2.3.4", ipAddress.Address);
         Assert.Equal(IpStatus.Pending, ipAddress.Status);
         Assert.Null(ipAddress.CountryTwoLetterCode);
-        Assert.Null(ipAddress.LastUpdated);
+        Assert.Null(ipAddress.LastCheckedAtUtc);
+        Assert.Null(ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -117,8 +118,8 @@ public sealed class IpAddressTests
 
         // Assert
         Assert.True(hasChanged);
-        Assert.Equal(expectedUtc, ipAddress.LastUpdated);
-        Assert.Equal(TimeSpan.Zero, ipAddress.LastUpdated!.Value.Offset);
+        Assert.Equal(expectedUtc, ipAddress.LastUpdatedAtUtc);
+        Assert.Equal(TimeSpan.Zero, ipAddress.LastUpdatedAtUtc!.Value.Offset);
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class IpAddressTests
 
         // Assert
         Assert.True(hasChanged);
-        Assert.Equal(FirstUpdate, ipAddress.LastUpdated);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -154,7 +155,7 @@ public sealed class IpAddressTests
 
         // Assert
         Assert.False(hasChanged);
-        Assert.Equal(FirstUpdate, ipAddress.LastUpdated);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -176,7 +177,7 @@ public sealed class IpAddressTests
         // Assert
         Assert.True(hasChanged);
         Assert.Equal("US", ipAddress.CountryTwoLetterCode);
-        Assert.Equal(SecondUpdate, ipAddress.LastUpdated);
+        Assert.Equal(SecondUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -193,7 +194,7 @@ public sealed class IpAddressTests
         Assert.True(hasChanged);
         Assert.Equal(IpStatus.UnknownIp, ipAddress.Status);
         Assert.Null(ipAddress.CountryTwoLetterCode);
-        Assert.Equal(FirstUpdate, ipAddress.LastUpdated);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -221,8 +222,8 @@ public sealed class IpAddressTests
 
         // Assert
         Assert.True(hasChanged);
-        Assert.Equal(expectedUtc, ipAddress.LastUpdated);
-        Assert.Equal(TimeSpan.Zero, ipAddress.LastUpdated!.Value.Offset);
+        Assert.Equal(expectedUtc, ipAddress.LastUpdatedAtUtc);
+        Assert.Equal(TimeSpan.Zero, ipAddress.LastUpdatedAtUtc!.Value.Offset);
     }
 
     [Fact]
@@ -239,7 +240,7 @@ public sealed class IpAddressTests
 
         // Assert
         Assert.False(hasChanged);
-        Assert.Equal(FirstUpdate, ipAddress.LastUpdated);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -260,7 +261,7 @@ public sealed class IpAddressTests
         Assert.True(hasChanged);
         Assert.Equal(IpStatus.UnknownIp, ipAddress.Status);
         Assert.Null(ipAddress.CountryTwoLetterCode);
-        Assert.Equal(SecondUpdate, ipAddress.LastUpdated);
+        Assert.Equal(SecondUpdate, ipAddress.LastUpdatedAtUtc);
     }
 
     [Fact]
@@ -281,6 +282,38 @@ public sealed class IpAddressTests
         Assert.True(hasChanged);
         Assert.Equal(IpStatus.Success, ipAddress.Status);
         Assert.Equal("GR", ipAddress.CountryTwoLetterCode);
-        Assert.Equal(SecondUpdate, ipAddress.LastUpdated);
+        Assert.Equal(SecondUpdate, ipAddress.LastUpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetCountry_SameCountry_AdvancesLastCheckedButNotLastUpdated()
+    {
+        // Arrange
+        var ipAddress = new IpAddress("1.2.3.4");
+        ipAddress.SetCountry("GR", FirstUpdate);
+
+        // Act
+        bool hasChanged = ipAddress.SetCountry("gr", SecondUpdate);
+
+        // Assert
+        Assert.False(hasChanged);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);   // frozen
+        Assert.Equal(SecondUpdate, ipAddress.LastCheckedAtUtc);  // advanced
+    }
+
+    [Fact]
+    public void MarkAsUnknown_AlreadyUnknown_AdvancesLastCheckedButNotLastUpdated()
+    {
+        // Arrange
+        var ipAddress = new IpAddress("1.2.3.4");
+        ipAddress.MarkAsUnknown(FirstUpdate);
+
+        // Act
+        bool hasChanged = ipAddress.MarkAsUnknown(SecondUpdate);
+
+        // Assert
+        Assert.False(hasChanged);
+        Assert.Equal(FirstUpdate, ipAddress.LastUpdatedAtUtc);
+        Assert.Equal(SecondUpdate, ipAddress.LastCheckedAtUtc);
     }
 }

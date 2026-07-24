@@ -33,4 +33,25 @@ public sealed class IpAddressRepository : IIpAddressRepository
     {
         _context.IpAddresses.Add(ipAddress);
     }
+
+    public async Task<IReadOnlyList<IpAddress>> GetBatchAsync(string? afterAddress, int batchSize, CancellationToken cancellationToken)
+    {
+        IQueryable<IpAddress> query = _context.IpAddresses
+            .AsNoTracking()
+            .OrderBy(ipAddress => ipAddress.Address);
+
+        if (!string.IsNullOrEmpty(afterAddress))
+        {
+            query = query.Where(ipAddress => string.Compare(ipAddress.Address, afterAddress) > 0);
+        }
+
+        return await query
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public void Update(IpAddress ipAddress)
+    {
+        _context.IpAddresses.Update(ipAddress);
+    }
 }

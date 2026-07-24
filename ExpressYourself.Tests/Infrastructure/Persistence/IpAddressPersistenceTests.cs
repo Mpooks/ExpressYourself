@@ -34,7 +34,7 @@ public sealed class IpAddressPersistenceTests
             Assert.NotNull(reloaded);
             Assert.Equal(IpStatus.Success, reloaded!.Status);
             Assert.Equal("GR", reloaded.CountryTwoLetterCode);
-            Assert.NotNull(reloaded.LastUpdated);
+            Assert.NotNull(reloaded.LastCheckedAtUtc);
         }
     }
 }
