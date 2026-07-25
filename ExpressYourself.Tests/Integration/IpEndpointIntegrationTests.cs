@@ -15,11 +15,11 @@ namespace ExpressYourself.Tests.Integration
 {
     [Collection(IntegrationCollection.Name)]
     [Trait("Category","Integration")]
-    public sealed class IpEndpointIntegrationTests
+    public sealed class IpEndpointIntegrationTests : IntegrationTestBase
     {
         private ApiFactory _apiFactory;
 
-        public IpEndpointIntegrationTests(ApiFactory apiFactory)
+        public IpEndpointIntegrationTests(ApiFactory apiFactory) : base(apiFactory)
         {
             _apiFactory = apiFactory;
         }
@@ -29,7 +29,7 @@ namespace ExpressYourself.Tests.Integration
         {
             const string address = "203.0.113.7";
             await SeedCacheAsync(address, new IpInformationCacheEntry("Greece", "GR", "GRC"));
-            _apiFactory.fakeIp2cClient.Throws(new Ip2cUnavailableException("Ip2c is unavailable"));
+            _apiFactory.FakeIp2cClient.Throws(new Ip2cUnavailableException("Ip2c is unavailable"));
             var client = _apiFactory.CreateClient();
 
             var response = await client.GetAsync($"/api/ips/{address}");
@@ -40,9 +40,9 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenAddressInDatabase_ReturnsOkFromDatabase()
         {
-            const string address = "203.0.113.7";
+            const string address = "203.0.113.8";
             await SeedDatabaseSuccessAsync(address, "GR", "GRC", "Greece");
-            _apiFactory.fakeIp2cClient.Throws(new Ip2cUnavailableException("Ip2c is unavailable"));
+            _apiFactory.FakeIp2cClient.Throws(new Ip2cUnavailableException("Ip2c is unavailable"));
             var client = _apiFactory.CreateClient();
 
             var response = await client.GetAsync($"/api/ips/{address}");
@@ -55,8 +55,8 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenNotCachedOrStored_FallsBackToIp2cReturnsOkAndPersists()
         {
-            const string address = "203.0.113.7";
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            const string address = "203.0.113.9";
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             var client = _apiFactory.CreateClient();
 
             var response = await client.GetAsync($"/api/ips/{address}");
@@ -68,7 +68,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task Get_WhenAddressMalformed_Returns400()
         {
             const string address = "1234.345.56.7886";
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             var client = _apiFactory.CreateClient();
 
             var response = await client.GetAsync($"/api/ips/{address}");
@@ -80,7 +80,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task Get_WhenUpstreamReportsInvalid_Returns400()
         {
             const string address = "203.0.113.4";
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Invalid, null, null, null));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Invalid, null, null, null));
             HttpClient client = _apiFactory.CreateClient();
 
             HttpResponseMessage response = await client.GetAsync($"/api/ips/{address}");
@@ -92,7 +92,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task Get_WhenUpstreamReportsUnknown_Returns404()
         {
             const string address = "203.0.113.5";
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Unknown, null, null, null));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Unknown, null, null, null));
             HttpClient client = _apiFactory.CreateClient();
 
             HttpResponseMessage response = await client.GetAsync($"/api/ips/{address}");
@@ -104,7 +104,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task Get_WhenUpstreamReturnsBadFormat_Returns502()
         {
             const string address = "203.0.113.6";
-            _apiFactory.fakeIp2cClient.Throws(new Ip2cResponseFormatException("malformed upstream payload"));
+            _apiFactory.FakeIp2cClient.Throws(new Ip2cResponseFormatException("malformed upstream payload"));
             HttpClient client = _apiFactory.CreateClient();
 
             HttpResponseMessage response = await client.GetAsync($"/api/ips/{address}");
@@ -115,8 +115,8 @@ namespace ExpressYourself.Tests.Integration
         [Fact]
         public async Task Get_WhenUpstreamUnavailable_Returns503()
         {
-            const string address = "203.0.113.7";
-            _apiFactory.fakeIp2cClient.Throws(new Ip2cUnavailableException("upstream down"));
+            const string address = "203.0.113.1";
+            _apiFactory.FakeIp2cClient.Throws(new Ip2cUnavailableException("upstream down"));
             HttpClient client = _apiFactory.CreateClient();
 
             HttpResponseMessage response = await client.GetAsync($"/api/ips/{address}");
