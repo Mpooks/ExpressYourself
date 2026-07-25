@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace ExpressYourself.Application.Behaviors
 {
-    public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         private readonly ILogger<PerformanceBehavior<TRequest, TResponse>> _logger;
 

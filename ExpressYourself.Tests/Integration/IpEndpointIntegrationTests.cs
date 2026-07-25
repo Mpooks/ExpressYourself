@@ -151,7 +151,7 @@ namespace ExpressYourself.Tests.Integration
 
             var countries = sp.GetRequiredService<ICountryRepository>();
             var ips = sp.GetRequiredService<IIpAddressRepository>();
-            var unitsOfWork = sp.GetService<IUnitOfWork>();
+            var unitsOfWork = sp.GetRequiredService<IUnitOfWork>();
 
             if (await countries.GetByTwoLetterCodeAsync(twoLetter, CancellationToken.None) is null)
             {

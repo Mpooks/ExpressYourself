@@ -37,7 +37,7 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
             if (cachedEntry is not null)
             {
                 _logger.LogInformation("Cache hit for IP {Address}.",normalizedAddress);
-                return CreateDto(address, cachedEntry);
+                return CreateDto(normalizedAddress, cachedEntry);
             }
             _logger.LogInformation("Cache miss for IP {Address}.",normalizedAddress);
 
@@ -54,14 +54,14 @@ namespace ExpressYourself.Infrastructure.IpInformation.Providers
                     if (cachedEntry is not null)
                     {
                         _logger.LogInformation("Cache hit for IP {Address} after waiting for an active lookup.",normalizedAddress);
-                        return CreateDto(address, cachedEntry);
+                        return CreateDto(normalizedAddress, cachedEntry);
                     }
 
                     IpInformationDto result;
 
                     try
                     {
-                        result = await _inner.GetIpInformationAsync(address, cancellationToken);
+                        result = await _inner.GetIpInformationAsync(normalizedAddress, cancellationToken);
                     }
                     catch (UnknownIpAddressException)
                     {
