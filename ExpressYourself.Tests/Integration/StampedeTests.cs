@@ -5,11 +5,11 @@ namespace ExpressYourself.Tests.Integration
 {
     [Collection(IntegrationCollection.Name)]
     [Trait("Category", "Integration")]
-    public sealed class StampedeTests
+    public sealed class StampedeTests : IntegrationTestBase
     {
         private readonly ApiFactory _apiFactory;
 
-        public StampedeTests(ApiFactory apiFactory)
+        public StampedeTests(ApiFactory apiFactory) : base(apiFactory)
         {
             _apiFactory = apiFactory;
         }
@@ -19,7 +19,7 @@ namespace ExpressYourself.Tests.Integration
         {
             //Arrange
             const int repeatingRequestCount = 10;
-            _apiFactory.fakeIp2cClient.ReturnAfterDelay(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"), TimeSpan.FromMilliseconds(200));
+            _apiFactory.FakeIp2cClient.ReturnAfterDelay(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"), TimeSpan.FromMilliseconds(200));
             HttpClient httpClient = _apiFactory.CreateClient();
             List<Task<HttpResponseMessage>> requests = new List<Task<HttpResponseMessage>>();
 
@@ -35,7 +35,7 @@ namespace ExpressYourself.Tests.Integration
             {
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             }
-            Assert.Equal(1, _apiFactory.fakeIp2cClient.CallCounter);
+            Assert.Equal(1, _apiFactory.FakeIp2cClient.CallCounter);
         }
     }
 }

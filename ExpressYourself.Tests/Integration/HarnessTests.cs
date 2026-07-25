@@ -6,11 +6,11 @@ namespace ExpressYourself.Tests.Integration
 {
     [Collection(IntegrationCollection.Name)]
     [Trait("Category", "Integration")]
-    public sealed class HarnessTests
+    public sealed class HarnessTests : IntegrationTestBase
     {
         private readonly ApiFactory _apiFactory;
 
-        public HarnessTests(ApiFactory apiFactory)
+        public HarnessTests(ApiFactory apiFactory) : base(apiFactory)
         {
             _apiFactory = apiFactory;
         }
@@ -19,7 +19,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task LookupResult_KnownIp_ReturnsOk()
         {
             //Arrange
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             HttpClient client = _apiFactory.CreateClient();
             
             //Act

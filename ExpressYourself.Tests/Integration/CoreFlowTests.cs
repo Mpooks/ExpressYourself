@@ -15,11 +15,11 @@ namespace ExpressYourself.Tests.Integration
 {
     [Collection(IntegrationCollection.Name)]
     [Trait("Category", "Integration")]
-    public sealed class CoreFlowTests
+    public sealed class CoreFlowTests : IntegrationTestBase
     {
         private readonly ApiFactory _apiFactory;
 
-        public CoreFlowTests(ApiFactory apiFactory)
+        public CoreFlowTests(ApiFactory apiFactory) : base(apiFactory)
         {
            _apiFactory = apiFactory;
         }
@@ -30,7 +30,7 @@ namespace ExpressYourself.Tests.Integration
             //Arrange
             await SeedIpWithCountryAsync("15.15.15.15", "GR", "GRC", "Greece");
 
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             HttpClient httpClient = _apiFactory.CreateClient();
 
             //Act
@@ -70,7 +70,7 @@ namespace ExpressYourself.Tests.Integration
             //Arrange
             await SeedIpWithCountryAsync("6.6.6.6", "GR", "GRC", "Greece");
             await SeedCacheAsync("6.6.6.6", new IpInformationCacheEntry("Greece", "GR", "GRC"));
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "AL", "ALB", "Albania"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "AL", "ALB", "Albania"));
             HttpClient httpClient = _apiFactory.CreateClient();
 
             //Act

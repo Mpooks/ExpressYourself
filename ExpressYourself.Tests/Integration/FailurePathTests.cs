@@ -7,20 +7,20 @@ namespace ExpressYourself.Tests.Integration
 {
     [Collection(IntegrationCollection.Name)]
     [Trait("Category", "Integration")]
-    public sealed class FailurePathTests
+    public sealed class FailurePathTests : IntegrationTestBase
     {
         private readonly ApiFactory _apiFactory;
 
-        public FailurePathTests(ApiFactory apiFactory) 
+        public FailurePathTests(ApiFactory apiFactory) : base(apiFactory)
         {
             _apiFactory = apiFactory;
         }
 
         [Fact]
-        public async Task Lookup_WhenRedIsUnavailable_FallbackToMemory_Returns200Ok()
+        public async Task Lookup_WhenRedisUnavailable_FallbackToMemory_Returns200Ok()
         {
             //Arrange
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             WebApplicationFactory<Program> withBrokenRedis = _apiFactory.WithWebHostBuilder(BreakRedis);
             HttpClient httpClient = withBrokenRedis.CreateClient();
 
@@ -35,7 +35,7 @@ namespace ExpressYourself.Tests.Integration
         public async Task Lookup_WhenDatabaseIsDown_ReturnServerError()
         {
             //Arrange
-            _apiFactory.fakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
+            _apiFactory.FakeIp2cClient.Returns(new Ip2cLookupResult(Ip2cLookupStatus.Success, "GR", "GRC", "Greece"));
             WebApplicationFactory<Program> withBrokenDb = _apiFactory.WithWebHostBuilder(BreakDatabase);
             HttpClient client = withBrokenDb.CreateClient();
 
