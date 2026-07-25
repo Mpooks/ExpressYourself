@@ -4,6 +4,7 @@ using ExpressYourself.Gateway.Ip2c;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using Polly.CircuitBreaker;
 using Polly.Timeout;
 using System.Net;
 
@@ -191,6 +192,62 @@ public class Ip2cClientTests
         It.IsAny<Exception?>(),
         It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
         Times.Once);
+    }
+
+    [Fact]
+    public async Task GetIpInformationAsync_WhenTimeoutRejectedExceptionIsThrown_ThrowsIp2cUnavailableException()
+    {
+        var handler = new Mock<HttpMessageHandler>();
+
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new TimeoutRejectedException());
+
+        var httpClient = new HttpClient(handler.Object)
+        {
+            BaseAddress = new Uri("https://ip2c.org/")
+        };
+
+        var logger = new Mock<ILogger<Ip2cClient>>();
+
+        var client = new Ip2cClient(httpClient, logger.Object);
+
+        var exception = await Assert.ThrowsAsync<Ip2cUnavailableException>(() =>
+            client.GetIpInformationAsync("8.8.8.8", CancellationToken.None));
+
+        Assert.Equal("IP2C request timed out.", exception.Message);
+        Assert.IsType<TimeoutRejectedException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task GetIpInformationAsync_WhenBrokenCircuitExceptionIsThrown_ThrowsIp2cUnavailableException()
+    {
+        var handler = new Mock<HttpMessageHandler>();
+
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new BrokenCircuitException());
+
+        var httpClient = new HttpClient(handler.Object)
+        {
+            BaseAddress = new Uri("https://ip2c.org/")
+        };
+
+        var logger = new Mock<ILogger<Ip2cClient>>();
+
+        var client = new Ip2cClient(httpClient, logger.Object);
+
+        var exception = await Assert.ThrowsAsync<Ip2cUnavailableException>(() =>
+            client.GetIpInformationAsync("8.8.8.8", CancellationToken.None));
+
+        Assert.Equal("IP2C circuit breaker is open.", exception.Message);
+        Assert.IsType<BrokenCircuitException>(exception.InnerException);
     }
 
 
