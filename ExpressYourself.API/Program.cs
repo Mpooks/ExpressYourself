@@ -69,8 +69,8 @@ IHttpClientBuilder ip2cHttpClientBuilder =
                 .Value;
             httpClient.BaseAddress =
                 new Uri(options.BaseUrl);
-            httpClient.Timeout =
-                Timeout.InfiniteTimeSpan;
+            httpClient.Timeout = TimeSpan.FromSeconds(
+    (options.RetryCount + 1) * options.TimeoutSeconds + 10);
             httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue(
                     "text/plain"));
@@ -82,6 +82,7 @@ IHttpClientBuilder ip2cHttpClientBuilder =
 ip2cHttpClientBuilder.AddResilienceHandler("Ip2cResiliencePipeline", (pipelineBuilder,context) =>
 {
     ILogger logger = context.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Ip2cCircuitBreaker");
+    pipelineBuilder.AddTimeout(TimeSpan.FromSeconds((ip2cOptions.RetryCount + 1) * ip2cOptions.TimeoutSeconds + 5));
     pipelineBuilder.AddRetry(
         new HttpRetryStrategyOptions
         {
@@ -203,7 +204,7 @@ builder.Services
 
 RateLimitingOptions rateLimitingOptions = builder.Configuration
     .GetSection(RateLimitingOptions.SectionName)
-    .Get<RateLimitingOptions>() ?? new RateLimitingOptions();
+    .Get<RateLimitingOptions>() ?? throw new InvalidOperationException("RateLimiting configuration is missing.");
 
 builder.Services.AddRateLimiter(rateLimiter =>
 {

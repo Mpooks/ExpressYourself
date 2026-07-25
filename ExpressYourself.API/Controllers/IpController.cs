@@ -4,7 +4,6 @@ using ExpressYourself.Application.Features.IpInformation.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using ExpressYourself.API.Configuration;
 
 
 namespace ExpressYourself.API.Controllers;
