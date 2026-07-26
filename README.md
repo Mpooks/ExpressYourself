@@ -1,4 +1,5 @@
 # ExpressYourself
+![CI](https://github.com/Mpooks/ExpressYourself/actions/workflows/ci.yml/badge.svg)
 
 **ExpressYourself** is a .NET 10 REST API that resolves IPv4 addresses to country information through the public IP2C service.
 
@@ -14,7 +15,7 @@ The application follows a **cache → database → IP2C** lookup flow. Successfu
 - CQRS with MediatR
 - Retry, timeout, and circuit breaker for IP2C
 - Rate limiting, health checks, and `ProblemDetails`
-- Unit and integration test coverage
+- Unit and integration test coverage, enforced by CI on every pull request
 
 ## Architecture
 
